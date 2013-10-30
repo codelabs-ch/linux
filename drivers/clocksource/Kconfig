@@ -293,4 +293,18 @@ config CLKSRC_IMX_GPT
 	depends on ARM && CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 
+config CLKSRC_MUEN_TIMER
+	bool "Muen clocksource timer"
+	select CLKSRC_MMIO
+	help
+	  Uses the Muen SK's shared memory timer.
+
+config CLKEVT_MUEN_NOOP
+	bool "Muen clockevent no-op"
+	help
+	  Include a no-op clockevent driver for use under Muen.
+
+config CLKBLD_MUEN
+	def_bool y if CLKSRC_MUEN_TIMER || CLKEVT_MUEN_NOOP
+
 endmenu
