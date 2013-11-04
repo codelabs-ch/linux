@@ -25,36 +25,39 @@ static bool has_epoch_changed(const struct muchannel *const channel,
 	return reader->epoch != atomic64_read(&channel->hdr.epoch);
 };
 
-enum reader_result muchannel_synchronize(const struct muchannel *const channel,
-					 struct muchannel_reader *reader)
+static enum reader_result synchronize(const struct muchannel *const channel,
+				      struct muchannel_reader *reader)
 {
 	enum reader_result result;
 
-	reader->syncd = false;
+	if (is_active(channel))
+		if (reader->protocol == atomic64_read(&channel->hdr.protocol) &&
+		    SHMSTREAM20 == atomic64_read(&channel->hdr.transport)) {
+			reader->epoch = atomic64_read(&channel->hdr.epoch);
+			reader->size = atomic64_read(&channel->hdr.size);
+			reader->elements =
+			    atomic64_read(&channel->hdr.elements);
+			reader->rc = 0;
 
-	reader->epoch = atomic64_read(&channel->hdr.epoch);
-
-	if (reader->epoch == 0) {
-		result = INACTIVE;
-	} else {
-		reader->protocol = atomic64_read(&channel->hdr.protocol);
-		reader->size = atomic64_read(&channel->hdr.size);
-		reader->elements = atomic64_read(&channel->hdr.elements);
-		reader->rc = 0;
-
-		if (atomic64_read(&channel->hdr.transport) != SHMSTREAM20) {
-			result = INCOMPATIBLE_INTERFACE;
-		} else {
-			if (has_epoch_changed(channel, reader)) {
+			if (has_epoch_changed(channel, reader))
 				result = EPOCH_CHANGED;
-			} else {
-				reader->syncd = true;
+			else
 				result = SUCCESS;
-			}
-		}
-	}
+		} else
+			result = INCOMPATIBLE_INTERFACE;
+	else
+		result = INACTIVE;
 
 	return result;
+};
+
+void muchannel_init(struct muchannel_reader *reader, u64 protocol)
+{
+	reader->epoch = NULL_EPOCH;
+	reader->protocol = protocol;
+	reader->size = 0;
+	reader->elements = 0;
+	reader->rc = 0;
 };
 
 enum reader_result muchannel_read(const struct muchannel *const channel,
@@ -64,24 +67,39 @@ enum reader_result muchannel_read(const struct muchannel *const channel,
 	u64 pos, rc;
 	enum reader_result result;
 
-	if (reader->rc >= atomic64_read(&channel->hdr.wc)) {
-		result = NO_DATA;
-	} else {
-		rc = reader->rc;
-		pos = do_div(rc, reader->elements) * reader->size;
-		memcpy(element, channel->data + pos, reader->size);
-
-		if (atomic64_read(&channel->hdr.wsc) >
-		    reader->rc + reader->elements) {
-			reader->rc = atomic64_read(&channel->hdr.wc);
-			result = OVERRUN_DETECTED;
-		} else {
-			reader->rc = reader->rc + 1;
-			result = SUCCESS;
+	if (is_active(channel)) {
+		if (reader->epoch == 0 || has_epoch_changed(channel, reader)) {
+			result = synchronize(channel, reader);
+			if (result != SUCCESS)
+				return result;
 		}
-		if (has_epoch_changed(channel, reader))
-			result = EPOCH_CHANGED;
-	}
+
+		if (reader->rc >= atomic64_read(&channel->hdr.wc))
+			result = NO_DATA;
+		else {
+			rc = reader->rc;
+			pos = do_div(rc, reader->elements) * reader->size;
+			memcpy(element, channel->data + pos, reader->size);
+
+			if (atomic64_read(&channel->hdr.wsc) >
+			    reader->rc + reader->elements) {
+				result = OVERRUN_DETECTED;
+				reader->rc = atomic64_read(&channel->hdr.wc);
+			} else {
+				result = SUCCESS;
+				reader->rc = reader->rc + 1;
+			}
+			if (has_epoch_changed(channel, reader))
+				result = EPOCH_CHANGED;
+		}
+	} else
+		result = INACTIVE;
 
 	return result;
+};
+
+void muchannel_drain(const struct muchannel *const channel,
+		     struct muchannel_reader *reader)
+{
+	reader->rc = atomic64_read(&channel->hdr.wc);
 };

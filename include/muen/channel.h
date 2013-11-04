@@ -10,6 +10,7 @@
  */
 
 #define SHMSTREAM20 0x487312b6b79a9b6d
+#define NULL_EPOCH	0
 
 #include <linux/atomic.h>
 
@@ -28,5 +29,10 @@ struct muchannel {
 	struct muchannel_header hdr;
 	char data[];
 };
+
+/*
+ * Returns True if the channe is currently active.
+ */
+bool is_active(const struct muchannel *const channel);
 
 #endif /* MUEN_CHANNEL_H */
