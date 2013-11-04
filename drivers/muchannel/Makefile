@@ -1,1 +1,1 @@
-obj-$(CONFIG_MUCHANNEL) += reader.o writer.o
+obj-$(CONFIG_MUCHANNEL) += channel.o reader.o writer.o

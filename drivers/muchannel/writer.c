@@ -36,7 +36,7 @@ void muchannel_initialize(struct muchannel *channel, const u64 protocol,
 
 void muchannel_deactivate(struct muchannel *channel)
 {
-	atomic64_set(&channel->hdr.epoch, 0);
+	atomic64_set(&channel->hdr.epoch, NULL_EPOCH);
 }
 
 void muchannel_write(struct muchannel *channel, const void *const element)
