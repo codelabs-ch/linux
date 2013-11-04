@@ -13,7 +13,6 @@ enum reader_result {
 };
 
 struct muchannel_reader {
-	bool syncd;
 	u64 epoch;
 	u64 protocol;
 	u64 size;
@@ -21,11 +20,22 @@ struct muchannel_reader {
 	u64 rc;
 };
 
-enum reader_result muchannel_synchronize(const struct muchannel *const channel,
-					 struct muchannel_reader *reader);
+/*
+ * Initialize reader with given protocol.
+ */
+void muchannel_init(struct muchannel_reader *reader, u64 protocol);
 
+/*
+ * Read next element from given channel.
+ */
 enum reader_result muchannel_read(const struct muchannel *const channel,
 				  struct muchannel_reader *reader,
 				  void *element);
+
+/*
+ * Drain all current channel elements.
+ */
+void muchannel_drain(const struct muchannel *const channel,
+		     struct muchannel_reader *reader);
 
 #endif /* MUEN_CHANNEL_READER_H */
