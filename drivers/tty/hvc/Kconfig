@@ -121,4 +121,11 @@ config HVCS
 	  which will also be compiled when this driver is built as a
 	  module.
 
+config HVC_MUEN
+    bool "Muen virtual console"
+    select HVC_DRIVER
+    default n
+    help
+      Muen virtual console
+
 endif # TTY
