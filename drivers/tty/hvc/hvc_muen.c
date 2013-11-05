@@ -24,6 +24,8 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 
+#include <muen/writer.h>
+
 #include "hvc_console.h"
 
 #define HVC_MUEN_COOKIE	0x4d75656e	/* "Muen" in hex */
@@ -31,9 +33,16 @@
 
 struct hvc_struct *hvc_muen_dev;
 
+static struct muchannel *channel_out = (struct muchannel *)__va(0x2000);
+
 static int hvc_muen_put(uint32_t vtermno, const char *buf, int count)
 {
-	return 0;
+	int i;
+
+	for (i = 0; i < count; i++)
+		muchannel_write(channel_out, &buf[i]);
+
+	return count;
 }
 
 static int hvc_muen_get(uint32_t vtermno, char *buf, int count)
@@ -67,6 +76,8 @@ static void __exit hvc_muen_exit(void)
 {
 	if (hvc_muen_dev)
 		hvc_remove(hvc_muen_dev);
+
+	muchannel_deactivate(channel_out);
 }
 
 module_exit(hvc_muen_exit);
@@ -74,6 +85,7 @@ module_exit(hvc_muen_exit);
 static int __init hvc_muen_console_init(void)
 {
 	pr_devel("Initializing Muen console\n");
+	muchannel_initialize(channel_out, 1, 1, CHANNEL_SIZE, 1);
 
 	hvc_instantiate(HVC_MUEN_COOKIE, 0, &hvc_muen_ops);
 

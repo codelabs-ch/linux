@@ -124,6 +124,7 @@ config HVCS
 config HVC_MUEN
     bool "Muen virtual console"
     select HVC_DRIVER
+    select MUCHAN
     default n
     help
       Muen virtual console
