@@ -1,0 +1,8 @@
+config MUCHANNEL
+	bool "Muen shared memory channels"
+	---help---
+	  This option is selected by any driver that uses the Muen shared memory
+	  channels.
+
+	  If unsure, say 'N'.
+
