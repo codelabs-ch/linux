@@ -807,4 +807,17 @@ config INPUT_DRV2667_HAPTICS
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv2667-haptics.
 
+config INPUT_MUEN_KBD
+	tristate "Muen virtual keyboard support"
+	default n
+	select MUCHANNEL
+	help
+	  This driver implements the Muen virtual keyboard device driver. It
+	  processes keyboard input via a shared memory channel.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called muen-kbd.
+
+	  If unsure, say N.
+
 endif
