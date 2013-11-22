@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
+#include <linux/kvm_para.h>
 
 #include <muen/writer.h>
 
@@ -30,6 +31,7 @@
 
 #define HVC_MUEN_COOKIE	0x4d75656e	/* "Muen" in hex */
 #define CHANNEL_SIZE	4032
+#define PENDING_DATA	1
 
 struct hvc_struct *hvc_muen_dev;
 
@@ -41,6 +43,8 @@ static int hvc_muen_put(uint32_t vtermno, const char *buf, int count)
 
 	for (i = 0; i < count; i++)
 		muchannel_write(channel_out, &buf[i]);
+
+	kvm_hypercall0(PENDING_DATA);
 
 	return count;
 }
