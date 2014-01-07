@@ -31,7 +31,7 @@ static void *base;
 
 static int __init clocksource_muen_timer_init(void)
 {
-	base = ioremap_cache(0x00001000, 4);
+	base = ioremap_cache(0x00002000, 4);
 	if (base) {
 		printk(KERN_INFO "Registering clocksource muen-timer\n");
 		return clocksource_mmio_init(base, "muen-timer",
