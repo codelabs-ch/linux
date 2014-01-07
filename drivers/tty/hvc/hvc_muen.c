@@ -35,7 +35,7 @@
 
 struct hvc_struct *hvc_muen_dev;
 
-static struct muchannel *channel_out = (struct muchannel *)__va(0x2000);
+static struct muchannel *channel_out = (struct muchannel *)__va(0x3000);
 
 static int hvc_muen_put(uint32_t vtermno, const char *buf, int count)
 {
