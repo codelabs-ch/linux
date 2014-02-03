@@ -91,7 +91,8 @@ static int __init muen_kbd_init(void)
 	muen_kbd->dev->id.product = 0x0001;
 	muen_kbd->dev->id.version = 0x0001;
 
-	__set_bit(EV_KEY, muen_kbd->dev->evbit);
+	muen_kbd->dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+
 	for (i = KEY_ESC; i < KEY_UNKNOWN; i++)
 		__set_bit(i, muen_kbd->dev->keybit);
 	for (i = KEY_OK; i < KEY_MAX; i++)
