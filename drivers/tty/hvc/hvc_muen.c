@@ -30,7 +30,7 @@
 #include "hvc_console.h"
 
 #define HVC_MUEN_COOKIE	0x4d75656e	/* "Muen" in hex */
-#define CHANNEL_SIZE	4032
+#define CHANNEL_SIZE	65472
 #define PENDING_DATA	1
 
 struct hvc_struct *hvc_muen_dev;
