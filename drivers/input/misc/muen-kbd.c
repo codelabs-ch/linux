@@ -42,7 +42,7 @@ struct muen_dev {
 
 static struct muen_dev *muen_kbd;
 
-static struct muchannel *channel_in = (struct muchannel *)__va(0x4000);
+static struct muchannel *channel_in = (struct muchannel *)__va(0x3000);
 static struct muchannel_reader reader;
 
 static irqreturn_t handle_muen_kbd_int(int rq, void *dev_id)
