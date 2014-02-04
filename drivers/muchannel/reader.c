@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2013  Reto Buerki <reet@codelabs.ch>
- * Copyright (C) 2013  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ * Copyright (C) 2013, 2014  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2013, 2014  Adrian-Ken Rueegsegger <ken@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ enum reader_result muchannel_read(const struct muchannel *const channel,
 	enum reader_result result;
 
 	if (is_active(channel)) {
-		if (reader->epoch == 0 || has_epoch_changed(channel, reader)) {
+		if (reader->epoch == NULL_EPOCH || has_epoch_changed(channel, reader)) {
 			result = synchronize(channel, reader);
 			if (result != SUCCESS)
 				return result;
