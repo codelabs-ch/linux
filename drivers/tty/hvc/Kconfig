@@ -115,11 +115,12 @@ config HVCS
 	  module.
 
 config HVC_MUEN
-    bool "Muen virtual console"
-    select HVC_DRIVER
-    select MUCHAN
-    default n
-    help
-      Muen virtual console
+	bool "Muen virtual console"
+	depends on MUEN_SINFO
+	select HVC_DRIVER
+	select MUCHAN
+	default n
+	help
+	  Muen virtual console
 
 endif # TTY
