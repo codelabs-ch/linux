@@ -23,9 +23,20 @@
 
 #include "musinfo.h"
 
+#define SINFO_BASE 0x00014000
+
+static const struct subject_info_type *
+const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
+
 static int __init muen_sinfo_init(void)
 {
-	pr_info("muen-sinfo: Subject information driver active\n");
+	if (sinfo->magic != MUEN_SUBJECT_INFO_MAGIC) {
+		pr_err("muen-sinfo: Subject information MAGIC mismatch, driver inactive\n");
+		return -EINVAL;
+	}
+
+	pr_info("muen-sinfo: Subject information exports %d channel(s)\n",
+			sinfo->channel_count);
 	return 0;
 }
 
