@@ -295,6 +295,7 @@ config CLKSRC_IMX_GPT
 
 config CLKSRC_MUEN_TIMER
 	bool "Muen clocksource timer"
+	depends on MUEN_SINFO
 	select CLKSRC_MMIO
 	help
 	  Uses the Muen SK's shared memory timer.
