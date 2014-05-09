@@ -32,4 +32,22 @@ struct muen_channel_info {
 bool muen_get_channel_info(const char * const name,
 		struct muen_channel_info *channel);
 
+/*
+ * Channel callback.
+ *
+ * Used in the muen_for_each_channel function. The optional void data pointer
+ * can be used to pass additional data.
+ */
+typedef bool (*channel_cb)(const struct muen_channel_info * const channel,
+		void *data);
+
+/*
+ * Invoke given callback function for each available channel.
+ *
+ * Channel information and the optional data argument are passed to each
+ * invocation of the callback. If a callback invocation returns false,
+ * processing is aborted and false is returned to the caller.
+ */
+bool muen_for_each_channel(channel_cb func, void *data);
+
 #endif /* MUEN_SINFO_H */
