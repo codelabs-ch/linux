@@ -88,26 +88,24 @@ module_exit(hvc_muen_exit);
 
 static int __init hvc_muen_console_init(void)
 {
-	uint64_t channel_address;
-	uint8_t vector;
-	bool writable, has_event, has_vector;
+	struct muen_channel_info channel;
 
-	if (!muen_get_channel_info("virtual_console", &channel_address,
-				&channel_size, &writable, &has_event,
-				&event_number, &has_vector, &vector)) {
+	if (!muen_get_channel_info("virtual_console", &channel)) {
 		pr_err("hvc_muen: Unable to retrieve console channel\n");
 		return -EINVAL;
 	}
 
-	if (!has_event) {
+	if (!channel.has_event) {
 		pr_err("hvc_muen: Unable to retrieve event number for console channel\n");
 		return -EINVAL;
 	}
 
+	event_number = channel.event_number;
+	channel_size = channel.size;
 	pr_info("hvc_muen: Using console channel at address 0x%llx with size 0x%llx, event %d\n",
-			channel_address, channel_size, event_number);
+			channel.address, channel_size, event_number);
 
-	channel_out = (struct muchannel *)__va(channel_address);
+	channel_out = (struct muchannel *)__va(channel.address);
 
 	muchannel_initialize(channel_out, 1, 1,
 			channel_size - sizeof(struct muchannel_header), 1);
