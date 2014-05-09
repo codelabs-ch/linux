@@ -32,6 +32,9 @@ const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
 /* Check subject info header magic */
 static bool check_magic(void);
 
+/* Fill channel struct with information from channel given by index */
+static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
+
 bool muen_get_channel_info(const char * const name,
 		struct muen_channel_info *channel)
 {
@@ -44,27 +47,43 @@ bool muen_get_channel_info(const char * const name,
 
 		if (strncmp(sinfo->channels[i].name.data, name,
 					sinfo->channels[i].name.length) == 0) {
-
-			memset(&channel->name, 0, MAX_CHANNEL_NAME_LEN + 1);
-			memcpy(&channel->name, sinfo->channels[i].name.data,
-					sinfo->channels[i].name.length);
-
-			channel->address  = sinfo->channels[i].address;
-			channel->size     = sinfo->channels[i].size;
-			channel->writable = sinfo->channels[i].flags
-				& WRITABLE_FLAG;
-
-			channel->has_event    = sinfo->channels[i].flags
-				& HAS_EVENT_FLAG;
-			channel->event_number = sinfo->channels[i].event;
-			channel->has_vector   = sinfo->channels[i].flags
-				& HAS_VECTOR_FLAG;
-			channel->vector       = sinfo->channels[i].vector;
-
+			fill_channel_data(i, channel);
 			return true;
 		}
 	}
 	return false;
+}
+
+bool muen_for_each_channel(channel_cb func, void *data)
+{
+	int i;
+	struct muen_channel_info current_channel;
+
+	if (!check_magic())
+		return false;
+
+	for (i = 0; i < sinfo->channel_count; i++) {
+		fill_channel_data(i, &current_channel);
+		if (!func(&current_channel, data))
+			return false;
+	}
+	return true;
+}
+
+static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel)
+{
+	memset(&channel->name, 0, MAX_CHANNEL_NAME_LEN + 1);
+	memcpy(&channel->name, sinfo->channels[idx].name.data,
+			sinfo->channels[idx].name.length);
+
+	channel->address  = sinfo->channels[idx].address;
+	channel->size     = sinfo->channels[idx].size;
+	channel->writable = sinfo->channels[idx].flags & WRITABLE_FLAG;
+
+	channel->has_event    = sinfo->channels[idx].flags & HAS_EVENT_FLAG;
+	channel->event_number = sinfo->channels[idx].event;
+	channel->has_vector   = sinfo->channels[idx].flags & HAS_VECTOR_FLAG;
+	channel->vector       = sinfo->channels[idx].vector;
 }
 
 static bool check_magic(void)
