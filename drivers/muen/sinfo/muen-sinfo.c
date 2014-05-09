@@ -33,9 +33,7 @@ const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
 static bool check_magic(void);
 
 bool muen_get_channel_info(const char * const name,
-		uint64_t *address, uint64_t *size, bool *writable,
-		bool *has_event, uint8_t *event_number,
-		bool *has_vector, uint8_t *vector)
+		struct muen_channel_info *channel)
 {
 	int i;
 
@@ -47,16 +45,21 @@ bool muen_get_channel_info(const char * const name,
 		if (strncmp(sinfo->channels[i].name.data, name,
 					sinfo->channels[i].name.length) == 0) {
 
-			*address  = sinfo->channels[i].address;
-			*size     = sinfo->channels[i].size;
-			*writable = sinfo->channels[i].flags & WRITABLE_FLAG;
+			memset(&channel->name, 0, MAX_CHANNEL_NAME_LEN + 1);
+			memcpy(&channel->name, sinfo->channels[i].name.data,
+					sinfo->channels[i].name.length);
 
-			*has_event    = sinfo->channels[i].flags
+			channel->address  = sinfo->channels[i].address;
+			channel->size     = sinfo->channels[i].size;
+			channel->writable = sinfo->channels[i].flags
+				& WRITABLE_FLAG;
+
+			channel->has_event    = sinfo->channels[i].flags
 				& HAS_EVENT_FLAG;
-			*event_number = sinfo->channels[i].event;
-			*has_vector   = sinfo->channels[i].flags
+			channel->event_number = sinfo->channels[i].event;
+			channel->has_vector   = sinfo->channels[i].flags
 				& HAS_VECTOR_FLAG;
-			*vector       = sinfo->channels[i].vector;
+			channel->vector       = sinfo->channels[i].vector;
 
 			return true;
 		}
