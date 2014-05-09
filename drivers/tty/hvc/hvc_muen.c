@@ -24,18 +24,18 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kvm_para.h>
-
+#include <muen/sinfo.h>
 #include <muen/writer.h>
 
 #include "hvc_console.h"
 
 #define HVC_MUEN_COOKIE	0x4d75656e	/* "Muen" in hex */
-#define CHANNEL_SIZE	65472
-#define PENDING_DATA	1
 
 struct hvc_struct *hvc_muen_dev;
 
-static struct muchannel *channel_out = (struct muchannel *)__va(0x4000);
+static uint8_t event_number;
+static uint64_t channel_size;
+static struct muchannel *channel_out;
 
 static int hvc_muen_put(uint32_t vtermno, const char *buf, int count)
 {
@@ -44,7 +44,7 @@ static int hvc_muen_put(uint32_t vtermno, const char *buf, int count)
 	for (i = 0; i < count; i++)
 		muchannel_write(channel_out, &buf[i]);
 
-	kvm_hypercall0(PENDING_DATA);
+	kvm_hypercall0(event_number);
 
 	return count;
 }
@@ -65,7 +65,7 @@ static int __init hvc_muen_init(void)
 
 	BUG_ON(hvc_muen_dev);
 
-	hp = hvc_alloc(HVC_MUEN_COOKIE, 0, &hvc_muen_ops, CHANNEL_SIZE);
+	hp = hvc_alloc(HVC_MUEN_COOKIE, 0, &hvc_muen_ops, channel_size);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 
@@ -88,9 +88,29 @@ module_exit(hvc_muen_exit);
 
 static int __init hvc_muen_console_init(void)
 {
-	pr_devel("Initializing Muen console\n");
-	muchannel_initialize(channel_out, 1, 1, CHANNEL_SIZE, 1);
+	uint64_t channel_address;
+	uint8_t vector;
+	bool writable, has_event, has_vector;
 
+	if (!muen_get_channel_info("virtual_console", &channel_address,
+				&channel_size, &writable, &has_event,
+				&event_number, &has_vector, &vector)) {
+		pr_err("hvc_muen: Unable to retrieve console channel\n");
+		return -EINVAL;
+	}
+
+	if (!has_event) {
+		pr_err("hvc_muen: Unable to retrieve event number for console channel\n");
+		return -EINVAL;
+	}
+
+	pr_info("hvc_muen: Using console channel at address 0x%llx with size 0x%llx, event %d\n",
+			channel_address, channel_size, event_number);
+
+	channel_out = (struct muchannel *)__va(channel_address);
+
+	muchannel_initialize(channel_out, 1, 1,
+			channel_size - sizeof(struct muchannel_header), 1);
 	hvc_instantiate(HVC_MUEN_COOKIE, 0, &hvc_muen_ops);
 
 	return 0;
