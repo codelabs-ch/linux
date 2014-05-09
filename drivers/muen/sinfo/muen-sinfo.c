@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/module.h>
+#include <muen/sinfo.h>
 
 #include "musinfo.h"
 
@@ -28,10 +29,50 @@
 static const struct subject_info_type *
 const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
 
+/* Check subject info header magic */
+static bool check_magic(void);
+
+bool muen_get_channel_info(const char * const name,
+		uint64_t *address, uint64_t *size, bool *writable,
+		bool *has_event, uint8_t *event_number,
+		bool *has_vector, uint8_t *vector)
+{
+	int i;
+
+	if (!check_magic())
+		return false;
+
+	for (i = 0; i < sinfo->channel_count; i++) {
+
+		if (strncmp(sinfo->channels[i].name.data, name,
+					sinfo->channels[i].name.length) == 0) {
+
+			*address  = sinfo->channels[i].address;
+			*size     = sinfo->channels[i].size;
+			*writable = sinfo->channels[i].flags & WRITABLE_FLAG;
+
+			*has_event    = sinfo->channels[i].flags
+				& HAS_EVENT_FLAG;
+			*event_number = sinfo->channels[i].event;
+			*has_vector   = sinfo->channels[i].flags
+				& HAS_VECTOR_FLAG;
+			*vector       = sinfo->channels[i].vector;
+
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool check_magic(void)
+{
+	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
+}
+
 static int __init muen_sinfo_init(void)
 {
-	if (sinfo->magic != MUEN_SUBJECT_INFO_MAGIC) {
-		pr_err("muen-sinfo: Subject information MAGIC mismatch, driver inactive\n");
+	if (!check_magic()) {
+		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
 		return -EINVAL;
 	}
 
