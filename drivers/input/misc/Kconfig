@@ -649,6 +649,7 @@ config INPUT_SIRFSOC_ONKEY
 
 config INPUT_MUEN_KBD
 	tristate "Muen virtual keyboard support"
+	depends on MUEN_SINFO
 	default n
 	select MUCHANNEL
 	help
