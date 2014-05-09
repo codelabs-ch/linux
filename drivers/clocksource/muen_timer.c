@@ -32,20 +32,15 @@ static void *base;
 
 static int __init clocksource_muen_timer_init(void)
 {
-	uint64_t channel_address, channel_size;
-	uint8_t vector, event_number;
-	bool writable, has_event, has_vector;
+	struct muen_channel_info channel;
 
-	if (!muen_get_channel_info("virtual_time", &channel_address,
-				&channel_size, &writable, &has_event,
-				&event_number, &has_vector, &vector)) {
+	if (!muen_get_channel_info("virtual_time", &channel)) {
 		pr_warn("Unable to retrieve Muen time channel\n");
 		return -1;
 	}
-	pr_info("Using Muen time channel at address 0x%llx\n",
-			channel_address);
+	pr_info("Using Muen time channel at address 0x%llx\n", channel.address);
 
-	base = ioremap_cache(channel_address, 4);
+	base = ioremap_cache(channel.address, 4);
 	if (base) {
 		return clocksource_mmio_init(base, "muen-timer",
 			1000, 366, 32, clocksource_mmio_readl_up);

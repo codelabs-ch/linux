@@ -63,28 +63,25 @@ static struct resource muen_kbd_res = {
 
 static int __init muen_kbd_init(void)
 {
-	uint64_t channel_address, channel_size;
-	uint8_t vector, irq_number, event_number;
-	bool writable, has_event, has_vector;
+	struct muen_channel_info channel;
+	uint8_t irq_number;
 	int i, error;
 
-	if (!muen_get_channel_info("virtual_keyboard", &channel_address,
-				&channel_size, &writable, &has_event,
-				&event_number, &has_vector, &vector)) {
+	if (!muen_get_channel_info("virtual_keyboard", &channel)) {
 		pr_err("muen-kbd: Unable to retrieve keyboard channel\n");
 		return -EINVAL;
 	}
 
-	if (!has_vector) {
+	if (!channel.has_vector) {
 		pr_err("muen-kbd: Unable to retrieve vector for keyboard channel\n");
 		return -EINVAL;
 	}
 
-	irq_number = vector - IRQ0_VECTOR;
+	irq_number = channel.vector - IRQ0_VECTOR;
 	pr_info("muen-kbd: Using keyboard channel at address 0x%llx, IRQ %d\n",
-			channel_address, irq_number);
+			channel.address, irq_number);
 
-	channel_in = (struct muchannel *)__va(channel_address);
+	channel_in = (struct muchannel *)__va(channel.address);
 	muen_kbd_res.start = irq_number;
 	muen_kbd_res.end   = irq_number;
 
