@@ -764,6 +764,7 @@ config INPUT_DRV2667_HAPTICS
 
 config INPUT_MUEN_KBD
 	tristate "Muen virtual keyboard support"
+	depends on MUEN_SINFO
 	default n
 	select MUCHANNEL
 	help
