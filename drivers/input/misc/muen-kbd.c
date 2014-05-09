@@ -26,8 +26,7 @@
 #include <linux/slab.h>
 
 #include <muen/reader.h>
-
-#define MUEN_KBD_IRQ 1
+#include <muen/sinfo.h>
 
 struct muen_key_info {
 	uint8_t keycode;	/* KEY_* value, as specified in linux/input.h */
@@ -42,7 +41,7 @@ struct muen_dev {
 
 static struct muen_dev *muen_kbd;
 
-static struct muchannel *channel_in = (struct muchannel *)__va(0x3000);
+static struct muchannel *channel_in;
 static struct muchannel_reader reader;
 
 static irqreturn_t handle_muen_kbd_int(int rq, void *dev_id)
@@ -59,14 +58,35 @@ static irqreturn_t handle_muen_kbd_int(int rq, void *dev_id)
 }
 
 static struct resource muen_kbd_res = {
-	.start = MUEN_KBD_IRQ,
-	.end = MUEN_KBD_IRQ,
 	.flags = IORESOURCE_IRQ,
 };
 
 static int __init muen_kbd_init(void)
 {
+	uint64_t channel_address, channel_size;
+	uint8_t vector, irq_number, event_number;
+	bool writable, has_event, has_vector;
 	int i, error;
+
+	if (!muen_get_channel_info("virtual_keyboard", &channel_address,
+				&channel_size, &writable, &has_event,
+				&event_number, &has_vector, &vector)) {
+		pr_err("muen-kbd: Unable to retrieve keyboard channel\n");
+		return -EINVAL;
+	}
+
+	if (!has_vector) {
+		pr_err("muen-kbd: Unable to retrieve vector for keyboard channel\n");
+		return -EINVAL;
+	}
+
+	irq_number = vector - IRQ0_VECTOR;
+	pr_info("muen-kbd: Using keyboard channel at address 0x%llx, IRQ %d\n",
+			channel_address, irq_number);
+
+	channel_in = (struct muchannel *)__va(channel_address);
+	muen_kbd_res.start = irq_number;
+	muen_kbd_res.end   = irq_number;
 
 	muen_kbd = kzalloc(sizeof(struct muen_dev), GFP_KERNEL);
 	if (!muen_kbd)
@@ -79,7 +99,7 @@ static int __init muen_kbd_init(void)
 		return -ENODEV;
 	}
 
-	muen_kbd->irq = MUEN_KBD_IRQ;
+	muen_kbd->irq = irq_number;
 	muen_kbd->dev = input_allocate_device();
 	if (!muen_kbd->dev)
 		return -ENOMEM;
