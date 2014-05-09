@@ -35,6 +35,10 @@ static bool check_magic(void);
 /* Fill channel struct with information from channel given by index */
 static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
 
+/* Log channel information */
+static bool log_channel(const struct muen_channel_info * const channel,
+		void *data);
+
 bool muen_get_channel_info(const char * const name,
 		struct muen_channel_info *channel)
 {
@@ -70,6 +74,25 @@ bool muen_for_each_channel(channel_cb func, void *data)
 	return true;
 }
 
+static bool log_channel(const struct muen_channel_info * const channel,
+		void *data)
+{
+	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s] %s\n",
+			channel->address, channel->size,
+			channel->writable ? "rw" : "ro", channel->name);
+
+	if (channel->has_event) {
+		pr_info("muen-sinfo:   (specifies event  %03d)\n",
+				channel->event_number);
+	}
+	if (channel->has_vector) {
+		pr_info("muen-sinfo:   (specifies vector %03d)\n",
+				channel->vector);
+	}
+
+	return true;
+}
+
 static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel)
 {
 	memset(&channel->name, 0, MAX_CHANNEL_NAME_LEN + 1);
@@ -100,6 +123,7 @@ static int __init muen_sinfo_init(void)
 
 	pr_info("muen-sinfo: Subject information exports %d channel(s)\n",
 			sinfo->channel_count);
+	muen_for_each_channel(log_channel, NULL);
 	return 0;
 }
 
