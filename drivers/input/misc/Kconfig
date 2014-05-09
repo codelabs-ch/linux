@@ -678,6 +678,7 @@ config INPUT_SOC_BUTTON_ARRAY
 
 config INPUT_MUEN_KBD
 	tristate "Muen virtual keyboard support"
+	depends on MUEN_SINFO
 	default n
 	select MUCHANNEL
 	help
