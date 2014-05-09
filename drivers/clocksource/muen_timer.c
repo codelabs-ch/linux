@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <muen/sinfo.h>
 
 #ifdef CONFIG_CLKSRC_MUEN_TIMER
 
@@ -31,13 +32,25 @@ static void *base;
 
 static int __init clocksource_muen_timer_init(void)
 {
-	base = ioremap_cache(0x00002000, 4);
+	uint64_t channel_address, channel_size;
+	uint8_t vector, event_number;
+	bool writable, has_event, has_vector;
+
+	if (!muen_get_channel_info("virtual_time", &channel_address,
+				&channel_size, &writable, &has_event,
+				&event_number, &has_vector, &vector)) {
+		pr_warn("Unable to retrieve Muen time channel\n");
+		return -1;
+	}
+	pr_info("Using Muen time channel at address 0x%llx\n",
+			channel_address);
+
+	base = ioremap_cache(channel_address, 4);
 	if (base) {
-		printk(KERN_INFO "Registering clocksource muen-timer\n");
 		return clocksource_mmio_init(base, "muen-timer",
 			1000, 366, 32, clocksource_mmio_readl_up);
 	} else {
-		printk(KERN_WARNING "Failed to map muen-timer\n");
+		pr_warn("Failed to remap muen-timer memory\n");
 		return -1;
 	}
 }
