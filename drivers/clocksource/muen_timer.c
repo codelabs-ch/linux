@@ -28,7 +28,7 @@
 
 #ifdef CONFIG_CLKSRC_MUEN_TIMER
 
-static void *base;
+static void __iomem *base;
 
 static int __init clocksource_muen_timer_init(void)
 {
@@ -92,7 +92,7 @@ static int muen_timer_next_event(const unsigned long delta,
 	return 0;
 }
 
-struct clock_event_device muen_timer_clockevent = {
+static struct clock_event_device muen_timer_clockevent = {
 	.name		= "muen-timer",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_MODE_ONESHOT,
 	.set_mode	= muen_timer_set_mode,
