@@ -31,7 +31,7 @@
 
 #define HVC_MUEN_COOKIE	0x4d75656e	/* "Muen" in hex */
 
-struct hvc_struct *hvc_muen_dev;
+static struct hvc_struct *hvc_muen_dev;
 
 static uint8_t event_number;
 static uint64_t channel_size;
