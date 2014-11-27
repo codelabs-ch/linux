@@ -725,6 +725,16 @@ config PARAVIRT_TIME_ACCOUNTING
 config PARAVIRT_CLOCK
 	bool
 
+config MUEN_GUEST
+	bool "Muen SK Guest support"
+	select MUEN_SINFO
+	select CLKEVT_MUEN
+	select CLKEVT_MUEN_NOOP
+	default n
+	---help---
+	  This option enables support for guests running on the Muen
+	  Separation Kernel.
+
 endif #HYPERVISOR_GUEST
 
 config NO_BOOTMEM
