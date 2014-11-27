@@ -76,6 +76,14 @@ bool muen_for_each_channel(channel_cb func, void *data)
 	return true;
 }
 
+uint64_t muen_get_tsc_khz(void)
+{
+	if (!check_magic())
+		return 0;
+
+	return sinfo->tsc_khz;
+}
+
 static bool log_channel(const struct muen_channel_info * const channel,
 		void *data)
 {
