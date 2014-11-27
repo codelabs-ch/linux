@@ -50,4 +50,11 @@ typedef bool (*channel_cb)(const struct muen_channel_info * const channel,
  */
 bool muen_for_each_channel(channel_cb func, void *data);
 
+/*
+ * Return TSC tick rate in kHz.
+ *
+ * The function returns 0 if the TSC tick rate cannot be retrieved.
+ */
+uint64_t muen_get_tsc_khz(void);
+
 #endif /* MUEN_SINFO_H */
