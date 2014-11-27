@@ -23,6 +23,11 @@ struct muen_channel_info {
 };
 
 /*
+ * Check Muen sinfo Magic.
+ */
+bool muen_check_magic(void);
+
+/*
  * Return information for a channel given by name.
  *
  * If no channel with given name exists, False is returned. The event_number

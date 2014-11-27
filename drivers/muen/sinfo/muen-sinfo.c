@@ -31,9 +31,6 @@
 static const struct subject_info_type *
 const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
 
-/* Check subject info header magic */
-static bool check_magic(void);
-
 /* Fill channel struct with information from channel given by index */
 static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
 
@@ -41,12 +38,17 @@ static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
 static bool log_channel(const struct muen_channel_info * const channel,
 		void *data);
 
+bool muen_check_magic(void)
+{
+	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
+}
+
 bool muen_get_channel_info(const char * const name,
 		struct muen_channel_info *channel)
 {
 	int i;
 
-	if (!check_magic())
+	if (!muen_check_magic())
 		return false;
 
 	for (i = 0; i < sinfo->channel_count; i++) {
@@ -65,7 +67,7 @@ bool muen_for_each_channel(channel_cb func, void *data)
 	int i;
 	struct muen_channel_info current_channel;
 
-	if (!check_magic())
+	if (!muen_check_magic())
 		return false;
 
 	for (i = 0; i < sinfo->channel_count; i++) {
@@ -78,7 +80,7 @@ bool muen_for_each_channel(channel_cb func, void *data)
 
 uint64_t muen_get_tsc_khz(void)
 {
-	if (!check_magic())
+	if (!muen_check_magic())
 		return 0;
 
 	return sinfo->tsc_khz;
@@ -119,14 +121,9 @@ static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel)
 	channel->vector       = sinfo->channels[idx].vector;
 }
 
-static bool check_magic(void)
-{
-	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
-}
-
 static int __init muen_sinfo_init(void)
 {
-	if (!check_magic()) {
+	if (!muen_check_magic()) {
 		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
 		return -EINVAL;
 	}
