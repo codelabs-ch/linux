@@ -98,7 +98,7 @@ static struct clock_event_device muen_timer_clockevent = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= muen_timer_set_mode,
 	.set_next_event = muen_timer_next_event,
-	.rating		= 25,
+	.rating		= INT_MAX,
 };
 
 static int __init clockevent_muen_timer_init(void)
