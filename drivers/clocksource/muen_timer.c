@@ -69,27 +69,18 @@ static void muen_timer_set_mode(const enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		printk(KERN_DEBUG "Muen timer event mode: CLOCK_EVT_MODE_PERIODIC\n");
-		break;
-
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		printk(KERN_DEBUG "Muen timer event mode: CLOCK_EVT_MODE_SHUTDOWN\n");
+		/* unsupported */
+		WARN_ON(1);
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:
-		printk(KERN_DEBUG "Muen timer event mode: CLOCK_EVT_MODE_UNUSED\n");
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		/* Cancel timer by setting timer to maximum value */
+		timer_page->value = ULLONG_MAX;
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
-		printk(KERN_DEBUG "Muen timer event mode: CLOCK_EVT_MODE_ONESHOT\n");
-		break;
-
 	case CLOCK_EVT_MODE_RESUME:
-		printk(KERN_DEBUG "Muen timer event mode: CLOCK_EVT_MODE_RESUME\n");
-		break;
-
-	default:
-		printk(KERN_DEBUG "Muen timer event mode: <unknown> %d\n", mode);
 		break;
 	}
 }
