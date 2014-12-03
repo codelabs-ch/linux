@@ -95,7 +95,7 @@ static int muen_timer_next_event(const unsigned long delta,
 
 static struct clock_event_device muen_timer_clockevent = {
 	.name		= "muen-timer",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_MODE_ONESHOT,
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= muen_timer_set_mode,
 	.set_next_event = muen_timer_next_event,
 	.rating		= 25,
