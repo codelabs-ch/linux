@@ -57,6 +57,13 @@ module_init(clocksource_muen_timer_init)
 
 #ifdef CONFIG_CLKEVT_MUEN_NOOP
 
+struct subject_timer_type {
+	uint64_t value;
+	uint8_t vector;
+} __packed;
+
+static struct subject_timer_type * timer_page;
+
 static void muen_timer_set_mode(const enum clock_event_mode mode,
 				struct clock_event_device *const evt)
 {
@@ -90,12 +97,14 @@ static void muen_timer_set_mode(const enum clock_event_mode mode,
 static int muen_timer_next_event(const unsigned long delta,
 				 struct clock_event_device *const evt)
 {
+	timer_page->value  = 0;
+	timer_page->vector = IRQ0_VECTOR;
 	return 0;
 }
 
 static struct clock_event_device muen_timer_clockevent = {
 	.name		= "muen-timer",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= muen_timer_set_mode,
 	.set_next_event = muen_timer_next_event,
 	.rating		= 25,
@@ -103,6 +112,17 @@ static struct clock_event_device muen_timer_clockevent = {
 
 static int __init clockevent_muen_timer_init(void)
 {
+	struct muen_memregion_info region;
+
+	if (!muen_get_memregion_info("timer", &region)) {
+		pr_warn("Unable to retrieve Muen time memory region\n");
+		return -1;
+	}
+	pr_info("Using Muen time memory region at address 0x%llx\n", region.address);
+
+	timer_page = (struct subject_timer_type *) ioremap_cache(region.address,
+			region.size);
+
 	printk(KERN_INFO "Registering clockevent device muen-timer\n");
 	muen_timer_clockevent.cpumask = cpu_online_mask;
 	clockevents_config_and_register(&muen_timer_clockevent, 1000, 1, 9999);
