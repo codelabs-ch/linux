@@ -88,7 +88,10 @@ static void muen_timer_set_mode(const enum clock_event_mode mode,
 static int muen_timer_next_event(const unsigned long delta,
 				 struct clock_event_device *const evt)
 {
-	timer_page->value  = 0;
+	uint64_t tsc_now;
+	rdtscll(tsc_now);
+
+	timer_page->value  = tsc_now + delta;
 	timer_page->vector = IRQ0_VECTOR;
 	return 0;
 }
