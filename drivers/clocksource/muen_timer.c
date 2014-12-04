@@ -21,42 +21,13 @@
 #include <asm/time.h>
 #include <asm/i8259.h>
 
-#include <linux/io.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
-#include <linux/clocksource.h>
 #include <muen/sinfo.h>
-
-#ifdef CONFIG_CLKSRC_MUEN_TIMER
-
-static void __iomem *base;
-
-static int __init clocksource_muen_timer_init(void)
-{
-	struct muen_channel_info channel;
-
-	if (!muen_get_channel_info("virtual_time", &channel)) {
-		pr_warn("Unable to retrieve Muen time channel\n");
-		return -1;
-	}
-	pr_info("Using Muen time channel at address 0x%llx\n", channel.address);
-
-	base = ioremap_cache(channel.address, 4);
-	if (base) {
-		return clocksource_mmio_init(base, "muen-timer",
-			1000, 366, 32, clocksource_mmio_readl_up);
-	} else {
-		pr_warn("Failed to remap muen-timer memory\n");
-		return -1;
-	}
-}
-
-module_init(clocksource_muen_timer_init)
-
-#endif
 
 #ifdef CONFIG_CLKEVT_MUEN_TIMER
 

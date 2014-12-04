@@ -111,18 +111,8 @@ config VF_PIT_TIMER
 	help
 	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.
 
-config CLKSRC_MUEN_TIMER
-	bool "Muen clocksource timer"
-	depends on MUEN_SINFO
-	select CLKSRC_MMIO
-	help
-	  Uses the Muen SK's shared memory timer.
-
 config CLKEVT_MUEN_TIMER
 	bool "Muen clockevent timer"
 	depends on MUEN_SINFO
 	help
 	  Uses the Muen SK's shared memory timer.
-
-config CLKBLD_MUEN
-	def_bool y if CLKSRC_MUEN_TIMER || CLKEVT_MUEN_TIMER
