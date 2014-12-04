@@ -110,7 +110,7 @@ static int __init clockevent_muen_timer_init(void)
 	return 0;
 }
 
-module_init(clockevent_muen_timer_init)
+arch_initcall(clockevent_muen_timer_init);
 
 #endif
 
