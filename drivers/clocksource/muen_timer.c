@@ -116,7 +116,8 @@ static int __init clockevent_muen_timer_init(void)
 
 	printk(KERN_INFO "Registering clockevent device muen-timer\n");
 	muen_timer_clockevent.cpumask = cpu_online_mask;
-	clockevents_config_and_register(&muen_timer_clockevent, 1000, 1, 9999);
+	clockevents_config_and_register(&muen_timer_clockevent,
+			muen_get_tsc_khz() * 1000, 1, 9999);
 	global_clock_event = &muen_timer_clockevent;
 	return 0;
 }
