@@ -300,12 +300,13 @@ config CLKSRC_MUEN_TIMER
 	help
 	  Uses the Muen SK's shared memory timer.
 
-config CLKEVT_MUEN_NOOP
-	bool "Muen clockevent no-op"
+config CLKEVT_MUEN_TIMER
+	bool "Muen clockevent timer"
+	depends on MUEN_SINFO
 	help
-	  Include a no-op clockevent driver for use under Muen.
+	  Uses the Muen SK's shared memory timer.
 
 config CLKBLD_MUEN
-	def_bool y if CLKSRC_MUEN_TIMER || CLKEVT_MUEN_NOOP
+	def_bool y if CLKSRC_MUEN_TIMER || CLKEVT_MUEN_TIMER
 
 endmenu
