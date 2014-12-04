@@ -58,7 +58,7 @@ module_init(clocksource_muen_timer_init)
 
 #endif
 
-#ifdef CONFIG_CLKEVT_MUEN_NOOP
+#ifdef CONFIG_CLKEVT_MUEN_TIMER
 
 struct subject_timer_type {
 	uint64_t value;
