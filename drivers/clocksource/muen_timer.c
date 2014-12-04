@@ -1,4 +1,7 @@
 /*
+ * Copyright (C) 2014  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2014  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -141,4 +144,9 @@ static int __init noop_pic_init(void)
 	return 0;
 }
 
-module_init(noop_pic_init)
+module_init(noop_pic_init);
+
+MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
+MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
+MODULE_DESCRIPTION("Muen clock event driver");
+MODULE_LICENSE("GPL");
