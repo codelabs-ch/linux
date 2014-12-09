@@ -31,7 +31,7 @@
 static const struct subject_info_type *
 const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
 
-/* Fill channel struct with information from channel given by index */
+/* Fill channel struct with channel information from resource given by index */
 static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
 
 /* Log channel information */
@@ -51,10 +51,10 @@ bool muen_get_channel_info(const char * const name,
 	if (!muen_check_magic())
 		return false;
 
-	for (i = 0; i < sinfo->channel_count; i++) {
-
-		if (strncmp(sinfo->channels[i].name.data, name,
-					sinfo->channels[i].name.length) == 0) {
+	pr_info("muen-sinfo: Getting channel info for %s\n", name);
+	for (i = 0; i < sinfo->resource_count; i++) {
+		if (strncmp(sinfo->resources[i].name.data, name,
+					sinfo->resources[i].name.length) == 0) {
 			fill_channel_data(i, channel);
 			return true;
 		}
@@ -70,10 +70,12 @@ bool muen_for_each_channel(channel_cb func, void *data)
 	if (!muen_check_magic())
 		return false;
 
-	for (i = 0; i < sinfo->channel_count; i++) {
-		fill_channel_data(i, &current_channel);
-		if (!func(&current_channel, data))
-			return false;
+	for (i = 0; i < sinfo->resource_count; i++) {
+		if (sinfo->resources[i].channel_info_idx != NO_RESOURCE) {
+			fill_channel_data(i, &current_channel);
+			if (!func(&current_channel, data))
+				return false;
+		}
 	}
 	return true;
 }
@@ -107,18 +109,23 @@ static bool log_channel(const struct muen_channel_info * const channel,
 
 static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel)
 {
-	memset(&channel->name, 0, MAX_CHANNEL_NAME_LEN + 1);
-	memcpy(&channel->name, sinfo->channels[idx].name.data,
-			sinfo->channels[idx].name.length);
+	const struct resource_type resource = sinfo->resources[idx];
+	const struct memregion_type memregion =
+		sinfo->memregions[resource.memregion_idx - 1];
+	const struct channel_info_type channel_info =
+		sinfo->channels_info[resource.channel_info_idx - 1];
 
-	channel->address  = sinfo->channels[idx].address;
-	channel->size     = sinfo->channels[idx].size;
-	channel->writable = sinfo->channels[idx].flags & WRITABLE_FLAG;
+	memset(&channel->name, 0, MAX_NAME_LENGTH + 1);
+	memcpy(&channel->name, resource.name.data, resource.name.length);
 
-	channel->has_event    = sinfo->channels[idx].flags & HAS_EVENT_FLAG;
-	channel->event_number = sinfo->channels[idx].event;
-	channel->has_vector   = sinfo->channels[idx].flags & HAS_VECTOR_FLAG;
-	channel->vector       = sinfo->channels[idx].vector;
+	channel->address  = memregion.address;
+	channel->size     = memregion.size;
+	channel->writable = memregion.flags & MEM_WRITABLE_FLAG;
+
+	channel->has_event    = channel_info.flags & CHAN_EVENT_FLAG;
+	channel->event_number = channel_info.event;
+	channel->has_vector   = channel_info.flags & CHAN_VECTOR_FLAG;
+	channel->vector       = channel_info.vector;
 }
 
 static int __init muen_sinfo_init(void)
@@ -129,8 +136,9 @@ static int __init muen_sinfo_init(void)
 	}
 
 	pr_info("muen-sinfo: Subject information exports %d channel(s)\n",
-			sinfo->channel_count);
+			sinfo->channel_info_count);
 	muen_for_each_channel(log_channel, NULL);
+
 	return 0;
 }
 
