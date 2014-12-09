@@ -34,9 +34,23 @@ const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
 /* Fill channel struct with channel information from resource given by index */
 static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
 
+/* Fill memregion struct with memory region info from resource given by index */
+static void fill_memregion_data(uint8_t idx,
+		struct muen_memregion_info *region);
+
 /* Log channel information */
 static bool log_channel(const struct muen_channel_info * const channel,
 		void *data);
+
+static bool is_memregion(const struct resource_type * const resource)
+{
+	return resource->memregion_idx != NO_RESOURCE;
+}
+
+static bool is_channel(const struct resource_type * const resource)
+{
+	return is_memregion(resource) && resource->channel_info_idx != NO_RESOURCE;
+}
 
 bool muen_check_magic(void)
 {
@@ -52,10 +66,32 @@ bool muen_get_channel_info(const char * const name,
 		return false;
 
 	pr_info("muen-sinfo: Getting channel info for %s\n", name);
+
 	for (i = 0; i < sinfo->resource_count; i++) {
-		if (strncmp(sinfo->resources[i].name.data, name,
+		if (is_channel(&sinfo->resources[i]) &&
+			strncmp(sinfo->resources[i].name.data, name,
 					sinfo->resources[i].name.length) == 0) {
 			fill_channel_data(i, channel);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool muen_get_memregion_info(const char * const name,
+		struct muen_memregion_info *memregion)
+{
+	int i;
+
+	if (!muen_check_magic())
+		return false;
+
+	pr_info("muen-sinfo: Getting memregion info for %s\n", name);
+	for (i = 0; i < sinfo->resource_count; i++) {
+		if (is_memregion(&sinfo->resources[i]) &&
+			strncmp(sinfo->resources[i].name.data, name,
+					sinfo->resources[i].name.length) == 0) {
+			fill_memregion_data(i, memregion);
 			return true;
 		}
 	}
@@ -71,9 +107,27 @@ bool muen_for_each_channel(channel_cb func, void *data)
 		return false;
 
 	for (i = 0; i < sinfo->resource_count; i++) {
-		if (sinfo->resources[i].channel_info_idx != NO_RESOURCE) {
+		if (is_channel(&sinfo->resources[i])) {
 			fill_channel_data(i, &current_channel);
 			if (!func(&current_channel, data))
+				return false;
+		}
+	}
+	return true;
+}
+
+bool muen_for_each_memregion(memregion_cb func, void *data)
+{
+	int i;
+	struct muen_memregion_info current_region;
+
+	if (!muen_check_magic())
+		return false;
+
+	for (i = 0; i < sinfo->resource_count; i++) {
+		if (is_memregion(&sinfo->resources[i])) {
+			fill_memregion_data(i, &current_region);
+			if (!func(&current_region, data))
 				return false;
 		}
 	}
@@ -91,7 +145,7 @@ uint64_t muen_get_tsc_khz(void)
 static bool log_channel(const struct muen_channel_info * const channel,
 		void *data)
 {
-	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s] %s\n",
+	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s-] %s\n",
 			channel->address, channel->size,
 			channel->writable ? "rw" : "ro", channel->name);
 
@@ -103,6 +157,17 @@ static bool log_channel(const struct muen_channel_info * const channel,
 		pr_info("muen-sinfo:   (specifies vector %03d)\n",
 				channel->vector);
 	}
+
+	return true;
+}
+
+static bool log_memregion(const struct muen_memregion_info * const region,
+		void *data)
+{
+	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s%s] %s\n",
+			region->address, region->size,
+			region->writable ? "rw" : "ro",
+			region->executable ? "x" : "-", region->name);
 
 	return true;
 }
@@ -128,12 +193,31 @@ static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel)
 	channel->vector       = channel_info.vector;
 }
 
+static void fill_memregion_data(uint8_t idx, struct muen_memregion_info *region)
+{
+	const struct resource_type resource = sinfo->resources[idx];
+	const struct memregion_type memregion =
+		sinfo->memregions[resource.memregion_idx - 1];
+
+	memset(&region->name, 0, MAX_NAME_LENGTH + 1);
+	memcpy(&region->name, resource.name.data, resource.name.length);
+
+	region->address    = memregion.address;
+	region->size       = memregion.size;
+	region->writable   = memregion.flags & MEM_WRITABLE_FLAG;
+	region->executable = memregion.flags & MEM_EXECUTABLE_FLAG;
+}
+
 static int __init muen_sinfo_init(void)
 {
 	if (!muen_check_magic()) {
 		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
 		return -EINVAL;
 	}
+
+	pr_info("muen-sinfo: Subject information exports %d memory region(s)\n",
+			sinfo->memregion_count);
+	muen_for_each_memregion(log_memregion, NULL);
 
 	pr_info("muen-sinfo: Subject information exports %d channel(s)\n",
 			sinfo->channel_info_count);
