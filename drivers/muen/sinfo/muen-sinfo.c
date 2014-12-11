@@ -65,8 +65,6 @@ bool muen_get_channel_info(const char * const name,
 	if (!muen_check_magic())
 		return false;
 
-	pr_info("muen-sinfo: Getting channel info for %s\n", name);
-
 	for (i = 0; i < sinfo->resource_count; i++) {
 		if (is_channel(&sinfo->resources[i]) &&
 			strncmp(sinfo->resources[i].name.data, name,
@@ -86,7 +84,6 @@ bool muen_get_memregion_info(const char * const name,
 	if (!muen_check_magic())
 		return false;
 
-	pr_info("muen-sinfo: Getting memregion info for %s\n", name);
 	for (i = 0; i < sinfo->resource_count; i++) {
 		if (is_memregion(&sinfo->resources[i]) &&
 			strncmp(sinfo->resources[i].name.data, name,
@@ -145,17 +142,17 @@ uint64_t muen_get_tsc_khz(void)
 static bool log_channel(const struct muen_channel_info * const channel,
 		void *data)
 {
-	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s-] %s\n",
-			channel->address, channel->size,
-			channel->writable ? "rw" : "ro", channel->name);
-
-	if (channel->has_event) {
-		pr_info("muen-sinfo:   (specifies event  %03d)\n",
-				channel->event_number);
-	}
-	if (channel->has_vector) {
-		pr_info("muen-sinfo:   (specifies vector %03d)\n",
-				channel->vector);
+	if (channel->has_event || channel->has_vector) {
+		pr_info("muen-sinfo: [%s with %s %03d] %s\n",
+				channel->writable ? "writer" : "reader",
+				channel->has_event ? "event " : "vector",
+				channel->has_event ? channel->event_number : channel->vector,
+				channel->name);
+	} else {
+		pr_info("muen-sinfo: [%s with no %s ] %s\n",
+			channel->writable ? "writer" : "reader",
+			channel->writable ? "event " : "vector",
+			channel->name);
 	}
 
 	return true;
