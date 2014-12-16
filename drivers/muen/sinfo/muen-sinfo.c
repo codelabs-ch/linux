@@ -225,5 +225,6 @@ static int __init muen_sinfo_init(void)
 
 module_init(muen_sinfo_init);
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
+MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
 MODULE_DESCRIPTION("Muen subject information driver");
 MODULE_LICENSE("GPL");
