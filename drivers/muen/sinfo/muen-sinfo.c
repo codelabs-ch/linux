@@ -56,6 +56,7 @@ bool muen_check_magic(void)
 {
 	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
 }
+EXPORT_SYMBOL(muen_check_magic);
 
 bool muen_get_channel_info(const char * const name,
 		struct muen_channel_info *channel)
@@ -75,6 +76,7 @@ bool muen_get_channel_info(const char * const name,
 	}
 	return false;
 }
+EXPORT_SYMBOL(muen_get_channel_info);
 
 bool muen_get_memregion_info(const char * const name,
 		struct muen_memregion_info *memregion)
@@ -94,6 +96,7 @@ bool muen_get_memregion_info(const char * const name,
 	}
 	return false;
 }
+EXPORT_SYMBOL(muen_get_memregion_info);
 
 bool muen_for_each_channel(channel_cb func, void *data)
 {
@@ -112,6 +115,7 @@ bool muen_for_each_channel(channel_cb func, void *data)
 	}
 	return true;
 }
+EXPORT_SYMBOL(muen_for_each_channel);
 
 bool muen_for_each_memregion(memregion_cb func, void *data)
 {
@@ -130,6 +134,7 @@ bool muen_for_each_memregion(memregion_cb func, void *data)
 	}
 	return true;
 }
+EXPORT_SYMBOL(muen_for_each_memregion);
 
 uint64_t muen_get_tsc_khz(void)
 {
@@ -138,6 +143,7 @@ uint64_t muen_get_tsc_khz(void)
 
 	return sinfo->tsc_khz;
 }
+EXPORT_SYMBOL(muen_get_tsc_khz);
 
 static bool log_channel(const struct muen_channel_info * const channel,
 		void *data)
