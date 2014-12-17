@@ -728,8 +728,7 @@ config PARAVIRT_CLOCK
 config MUEN_GUEST
 	bool "Muen SK Guest support"
 	select MUEN_SINFO
-	select CLKEVT_MUEN
-	select CLKEVT_MUEN_NOOP
+	select CLKEVT_MUEN_TIMER
 	default n
 	---help---
 	  This option enables support for guests running on the Muen
