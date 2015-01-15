@@ -40,7 +40,7 @@ static void __init muen_platform_setup(void)
 	x86_platform.calibrate_tsc = muen_sinfo_get_tsc_khz;
 }
 
-static bool __init muen_platform(void)
+static uint32_t __init muen_platform(void)
 {
 	return muen_check_magic();
 }
