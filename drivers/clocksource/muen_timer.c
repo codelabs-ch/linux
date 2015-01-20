@@ -29,8 +29,6 @@
 #include <linux/clockchips.h>
 #include <muen/sinfo.h>
 
-#ifdef CONFIG_CLKEVT_MUEN_TIMER
-
 struct subject_timer_type {
 	uint64_t value;
 	uint8_t vector;
@@ -100,8 +98,6 @@ static int __init clockevent_muen_timer_init(void)
 }
 
 arch_initcall(clockevent_muen_timer_init);
-
-#endif
 
 static void noop_irq_data(struct irq_data *const data) {}
 
