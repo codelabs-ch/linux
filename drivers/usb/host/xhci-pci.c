@@ -607,15 +607,13 @@ static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	 * writers.
 	 *
 	 * Unconditionally switch the ports back to xHCI after a system resume.
-	 * It should not matter whether the EHCI or xHCI controller is
-	 * resumed first. It's enough to do the switchover in xHCI because
-	 * USB core won't notice anything as the hub driver doesn't start
-	 * running again until after all the devices (including both EHCI and
-	 * xHCI host controllers) have been resumed.
+	 * We can't tell whether the EHCI or xHCI controller will be resumed
+	 * first, so we have to do the port switchover in both drivers.  Writing
+	 * a '1' to the port switchover registers should have no effect if the
+	 * port was already switched over.
 	 */
-
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
-		usb_enable_intel_xhci_ports(pdev);
+	if (usb_is_intel_switchable_xhci(pdev))
+		usb_enable_xhci_ports(pdev);
 
 	if (xhci->quirks & XHCI_SSIC_PORT_UNUSED)
 		xhci_ssic_port_unused_quirk(hcd, false);
