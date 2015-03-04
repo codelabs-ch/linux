@@ -63,8 +63,7 @@ static int muen_timer_next_event(const unsigned long delta,
 	uint64_t tsc_now;
 	rdtscll(tsc_now);
 
-	timer_page->value  = tsc_now + delta;
-	timer_page->vector = IRQ0_VECTOR;
+	timer_page->value = tsc_now + delta;
 	return 0;
 }
 
@@ -88,6 +87,8 @@ static int __init clockevent_muen_timer_init(void)
 
 	timer_page = (struct subject_timer_type *) ioremap_cache(region.address,
 			region.size);
+
+	timer_page->vector = IRQ0_VECTOR;
 
 	printk(KERN_INFO "Registering clockevent device muen-timer\n");
 	muen_timer_clockevent.cpumask = cpu_online_mask;
