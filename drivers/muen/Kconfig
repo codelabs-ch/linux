@@ -8,4 +8,12 @@ config MUEN_SINFO
 	  The Muen subject information driver provides data about the execution
 	  environment to other Muen modules.
 
+config MUEN_PCI_MSI
+	bool "Muen PCI Message Signaled Interrupt support"
+	depends on X86 && PCI_MSI
+	default n
+	help
+	  The Muen PCI MSI driver provides support for Message Signaled Interrupts
+	  for passed through PCI devices.
+
 endmenu
