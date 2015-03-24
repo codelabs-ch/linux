@@ -100,20 +100,6 @@ static int __init clockevent_muen_timer_init(void)
 
 arch_initcall(clockevent_muen_timer_init);
 
-static void noop_irq_data(struct irq_data *const data) {}
-
-static int __init noop_pic_init(void)
-{
-	printk(KERN_INFO "Registering no-op PIC functions\n");
-	i8259A_chip.irq_mask		= noop_irq_data;
-	i8259A_chip.irq_disable		= noop_irq_data;
-	i8259A_chip.irq_unmask		= noop_irq_data;
-	i8259A_chip.irq_mask_ack	= noop_irq_data;
-	return 0;
-}
-
-module_init(noop_pic_init);
-
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
 MODULE_DESCRIPTION("Muen clock event driver");
