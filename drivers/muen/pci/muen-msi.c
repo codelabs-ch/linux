@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/acpi.h>
+#include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
 
@@ -90,10 +91,69 @@ static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 			msg->address_lo, handle);
 }
 
+static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
+		unsigned int irq_base, unsigned int irq_offset)
+{
+	struct irq_chip *chip = &dummy_irq_chip;
+	unsigned int const irq = irq_base + irq_offset;
+	struct msi_msg msg;
+	int ret;
+
+	ret = irq_set_msi_desc(irq, msidesc);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * MSI-X message is written per-IRQ, the offset is always 0.
+	 * MSI message denotes a contiguous group of IRQs, written for 0th IRQ.
+	 */
+	if (!irq_offset) {
+		muen_msi_compose_msg(dev, irq, 0, &msg, -1);
+		write_msi_msg(irq, &msg);
+	}
+
+	irq_set_chip_and_handler_name(irq, chip, handle_edge_irq, "edge");
+
+	dev_info(&dev->dev, "irq %d for MSI/MSI-X\n", irq);
+
+	return 0;
+}
+
 static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	pr_err("muen: muen_setup_msi_irqs not implemented\n");
-	return 1;
+	struct msi_desc *msidesc;
+	unsigned int irq, offset = 0;
+	int node, ret;
+
+	 /* Multiple MSI vectors not (yet) supported */
+	if (nvec > 1)
+		return 1;
+
+	ret = acpi_get_prt_msi_handle(dev);
+	if (ret < 0) {
+		dev_info(&dev->dev, "no MSI handle configured\n");
+		return -EINVAL;
+	}
+
+	node = dev_to_node(&dev->dev);
+	list_for_each_entry(msidesc, &dev->msi_list, list) {
+		irq = create_irq_nr(dev->irq + offset, node);
+		if (!irq) {
+			dev_err(&dev->dev, "No space\n");
+			return -ENOSPC;
+		}
+
+		ret = muen_setup_msi_irq(dev, msidesc, dev->irq, offset);
+		if (ret < 0)
+			goto error;
+
+		offset++;
+	}
+	return 0;
+
+error:
+	destroy_irq(irq);
+	return ret;
 }
 
 static void muen_teardown_msi_irq(unsigned int irq)
