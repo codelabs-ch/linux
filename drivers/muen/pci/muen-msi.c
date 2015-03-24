@@ -42,8 +42,13 @@ static void muen_teardown_msi_irq(unsigned int irq)
 
 int __init muen_msi_init(void)
 {
-	pr_err("muen: muen_msi_init not implemented\n");
-	return 1;
+	pr_info("muen: Registering platform-specific MSI operations\n");
+
+	x86_msi.setup_msi_irqs   = muen_setup_msi_irqs;
+	x86_msi.teardown_msi_irq = muen_teardown_msi_irq;
+	x86_msi.compose_msi_msg  = muen_msi_compose_msg;
+
+	return 0;
 }
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
