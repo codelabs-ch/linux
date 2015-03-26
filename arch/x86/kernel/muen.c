@@ -20,8 +20,13 @@
  * 02110-1301, USA.
  */
 
+#include <linux/irq.h>
+
+#include <asm/io.h>
+#include <asm/i8259.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
+
 #include <muen/sinfo.h>
 
 static unsigned long muen_sinfo_get_tsc_khz(void)
@@ -38,6 +43,9 @@ static void muen_set_cpu_features(struct cpuinfo_x86 *c)
 static void __init muen_platform_setup(void)
 {
 	x86_platform.calibrate_tsc = muen_sinfo_get_tsc_khz;
+
+	null_legacy_pic.nr_legacy_irqs = NR_IRQS_LEGACY;
+	legacy_pic = &null_legacy_pic;
 }
 
 static bool __init muen_platform(void)
