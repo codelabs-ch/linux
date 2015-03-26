@@ -40,9 +40,21 @@ static void muen_set_cpu_features(struct cpuinfo_x86 *c)
 	set_cpu_cap(c, X86_FEATURE_TSC_RELIABLE);
 }
 
+static void __init muen_init_IRQ(void)
+{
+	int i;
+	native_init_IRQ();
+
+	/* Create vector mapping for all IRQs */
+	for (i = IRQ0_VECTOR; i < NR_VECTORS; i++) {
+		__this_cpu_write(vector_irq[i], i - IRQ0_VECTOR);
+	}
+}
+
 static void __init muen_platform_setup(void)
 {
 	x86_platform.calibrate_tsc = muen_sinfo_get_tsc_khz;
+	x86_init.irqs.intr_init    = muen_init_IRQ;
 
 	null_legacy_pic.nr_legacy_irqs = NR_IRQS_LEGACY;
 	legacy_pic = &null_legacy_pic;
