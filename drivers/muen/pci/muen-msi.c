@@ -158,7 +158,9 @@ error:
 
 static void muen_teardown_msi_irq(unsigned int irq)
 {
-	pr_err("muen: muen_teardown_msi_irq not implemented\n");
+	/* Do not destroy legacy IRQs */
+	if (irq >= NR_IRQS_LEGACY && irq_to_desc(irq))
+		destroy_irq(irq);
 }
 
 int __init muen_msi_init(void)
