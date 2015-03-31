@@ -56,7 +56,9 @@ static void __init muen_platform_setup(void)
 {
 	x86_platform.calibrate_tsc = muen_sinfo_get_tsc_khz;
 	x86_init.irqs.intr_init    = muen_init_IRQ;
+#ifdef CONFIG_MUEN_PCI_MSI
 	x86_init.pci.arch_init     = muen_msi_init;
+#endif
 
 	null_legacy_pic.nr_legacy_irqs = NR_IRQS_LEGACY;
 	legacy_pic = &null_legacy_pic;
