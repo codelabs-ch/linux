@@ -21,8 +21,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/acpi.h>
+#include <linux/msi.h>
 #include <linux/pci.h>
 
+#include <asm/msidef.h>
 #include <asm/x86_init.h>
 
 /**
@@ -70,7 +72,22 @@ static int acpi_get_prt_msi_handle(struct pci_dev *dev)
 static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 		unsigned int dest, struct msi_msg *msg, u8 hpet_id)
 {
-	pr_err("muen: muen_msi_compose_msg not implemented\n");
+	int handle;
+	handle = acpi_get_prt_msi_handle(pdev);
+
+	BUG_ON(handle < 0);
+
+	msg->address_hi = MSI_ADDR_BASE_HI;
+	msg->address_lo =
+		MSI_ADDR_BASE_LO | MSI_ADDR_IR_EXT_INT |
+		MSI_ADDR_IR_INDEX1(handle) |
+		MSI_ADDR_IR_INDEX2(handle);
+
+	/* No subhandle */
+	msg->data = 0;
+
+	dev_info(&pdev->dev, "programming MSI address 0x%x with IRTE handle %d\n",
+			msg->address_lo, handle);
 }
 
 static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
