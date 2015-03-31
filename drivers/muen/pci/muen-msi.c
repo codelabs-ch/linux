@@ -20,8 +20,52 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/acpi.h>
+#include <linux/pci.h>
 
 #include <asm/x86_init.h>
+
+/**
+ * Returns the MSI handle of the given PCI device. The value is encoded
+ * in the _PRT entry which has a PIN value greater than 3.
+ */
+static int acpi_get_prt_msi_handle(struct pci_dev *dev)
+{
+	acpi_status status;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_pci_routing_table *entry;
+	acpi_handle handle = NULL;
+	const int device_addr = PCI_SLOT(dev->devfn);
+	int msi_handle = -1;
+
+	if (dev->bus->bridge)
+		handle = ACPI_HANDLE(dev->bus->bridge);
+
+	if (!handle)
+		return -ENODEV;
+
+	/* 'handle' is the _PRT's parent (root bridge or PCI-PCI bridge) */
+	status = acpi_get_irq_routing_table(handle, &buffer);
+	if (ACPI_FAILURE(status)) {
+		kfree(buffer.pointer);
+		return -ENODEV;
+	}
+
+	entry = buffer.pointer;
+	while (entry && (entry->length > 0)) {
+		if (((entry->address >> 16) & 0xffff) == device_addr &&
+			entry->pin > 3) {
+			/* Handle is encoded in the _PRT entry's pin field */
+			msi_handle = entry->pin;
+			break;
+		}
+		entry = (struct acpi_pci_routing_table *)
+		    ((unsigned long)entry + entry->length);
+	}
+
+	kfree(buffer.pointer);
+	return msi_handle;
+}
 
 static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 		unsigned int dest, struct msi_msg *msg, u8 hpet_id)
