@@ -293,20 +293,10 @@ config CLKSRC_IMX_GPT
 	depends on ARM && CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 
-config CLKSRC_MUEN_TIMER
-	bool "Muen clocksource timer"
-	depends on MUEN_SINFO
-	select CLKSRC_MMIO
-	help
-	  Uses the Muen SK's shared memory timer.
-
 config CLKEVT_MUEN_TIMER
 	bool "Muen clockevent timer"
 	depends on MUEN_SINFO
 	help
 	  Uses the Muen SK's shared memory timer.
-
-config CLKBLD_MUEN
-	def_bool y if CLKSRC_MUEN_TIMER || CLKEVT_MUEN_TIMER
 
 endmenu
