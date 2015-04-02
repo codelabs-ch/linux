@@ -114,8 +114,6 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 
 	irq_set_chip_and_handler_name(irq, chip, handle_edge_irq, "edge");
 
-	dev_info(&dev->dev, "irq %d for MSI/MSI-X\n", irq);
-
 	return 0;
 }
 
@@ -155,6 +153,10 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			ret = muen_setup_msi_irq(dev, msidesc, irq, offset);
 			if (ret < 0)
 				goto error;
+
+			dev_info(&dev->dev, "irq %d for MSI%s\n",
+				 dev->irq + offset,
+				 type == PCI_CAP_ID_MSIX ? "-X" : "");
 		}
 	}
 	return 0;
