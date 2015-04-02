@@ -122,7 +122,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
-	unsigned int irq, offset = 0;
+	unsigned int irq = dev->irq, offset = 0;
 	int node, ret;
 
 	 /* Multiple MSI vectors not (yet) supported */
@@ -137,22 +137,30 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	node = dev_to_node(&dev->dev);
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = create_irq_nr(dev->irq + offset, node);
-		if (!irq) {
+		if (irq >= NR_IRQS_LEGACY)
+			irq = irq_alloc_descs(irq, irq, nvec, node);
+
+		if (irq < 0) {
 			dev_err(&dev->dev, "No space\n");
-			return -ENOSPC;
+			ret = -ENOSPC;
+			goto error;
+		} else if (irq != dev->irq) {
+			dev_err(&dev->dev, "Error allocating IRQ desc: %d != %d\n",
+				dev->irq, irq);
+			ret = -EINVAL;
+			goto error;
 		}
 
-		ret = muen_setup_msi_irq(dev, msidesc, dev->irq, offset);
-		if (ret < 0)
-			goto error;
-
-		offset++;
+		for (offset = 0; offset < nvec; offset++) {
+			ret = muen_setup_msi_irq(dev, msidesc, irq, offset);
+			if (ret < 0)
+				goto error;
+		}
 	}
 	return 0;
 
 error:
-	destroy_irq(irq);
+	irq_free_descs(dev->irq, nvec);
 	return ret;
 }
 
@@ -160,7 +168,7 @@ static void muen_teardown_msi_irq(unsigned int irq)
 {
 	/* Do not destroy legacy IRQs */
 	if (irq >= NR_IRQS_LEGACY && irq_to_desc(irq))
-		destroy_irq(irq);
+		irq_free_desc(irq);
 }
 
 int __init muen_msi_init(void)
