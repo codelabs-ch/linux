@@ -73,22 +73,25 @@ static int acpi_get_prt_msi_handle(struct pci_dev *dev)
 static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 		unsigned int dest, struct msi_msg *msg, u8 hpet_id)
 {
-	int handle;
+	int handle, subhandle;
 	handle = acpi_get_prt_msi_handle(pdev);
 
 	BUG_ON(handle < 0);
 
+	/* Set subhandle to offset from base IRQ */
+	subhandle = irq - pdev->irq;
+
 	msg->address_hi = MSI_ADDR_BASE_HI;
 	msg->address_lo =
 		MSI_ADDR_BASE_LO | MSI_ADDR_IR_EXT_INT |
+		MSI_ADDR_IR_SHV |
 		MSI_ADDR_IR_INDEX1(handle) |
 		MSI_ADDR_IR_INDEX2(handle);
 
-	/* No subhandle */
-	msg->data = 0;
+	msg->data = subhandle;
 
-	dev_info(&pdev->dev, "programming MSI address 0x%x with IRTE handle %d\n",
-			msg->address_lo, handle);
+	dev_info(&pdev->dev, "programming MSI address 0x%x with IRTE handle %d/%d\n",
+			msg->address_lo, handle, subhandle);
 }
 
 static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
@@ -120,12 +123,14 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
-	unsigned int irq = dev->irq, offset = 0;
+	unsigned int irq = dev->irq;
 	int node, ret;
 
-	 /* Multiple MSI vectors not (yet) supported */
-	if (nvec > 1)
+	/* Multiple vectors only supported for MSI-X */
+	if (nvec > 1 && type == PCI_CAP_ID_MSI) {
+		dev_info(&dev->dev, "Multiple vectors only supported for MSI-X\n");
 		return 1;
+	}
 
 	ret = acpi_get_prt_msi_handle(dev);
 	if (ret < 0) {
@@ -134,30 +139,28 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	}
 
 	node = dev_to_node(&dev->dev);
+	if (irq >= NR_IRQS_LEGACY)
+		irq = irq_alloc_descs(irq, irq, nvec, node);
+
+	if (irq < 0) {
+		dev_err(&dev->dev, "No space\n");
+		ret = -ENOSPC;
+		goto error;
+	} else if (irq != dev->irq) {
+		dev_err(&dev->dev, "Error allocating IRQ desc: %d != %d\n",
+			dev->irq, irq);
+		ret = -EINVAL;
+		goto error;
+	}
+
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		if (irq >= NR_IRQS_LEGACY)
-			irq = irq_alloc_descs(irq, irq, nvec, node);
-
-		if (irq < 0) {
-			dev_err(&dev->dev, "No space\n");
-			ret = -ENOSPC;
+		ret = muen_setup_msi_irq(dev, msidesc, irq, 0);
+		if (ret < 0)
 			goto error;
-		} else if (irq != dev->irq) {
-			dev_err(&dev->dev, "Error allocating IRQ desc: %d != %d\n",
-				dev->irq, irq);
-			ret = -EINVAL;
-			goto error;
-		}
 
-		for (offset = 0; offset < nvec; offset++) {
-			ret = muen_setup_msi_irq(dev, msidesc, irq, offset);
-			if (ret < 0)
-				goto error;
-
-			dev_info(&dev->dev, "irq %d for MSI%s\n",
-				 dev->irq + offset,
-				 type == PCI_CAP_ID_MSIX ? "-X" : "");
-		}
+		dev_info(&dev->dev, "irq %d for MSI%s\n", irq,
+			 type == PCI_CAP_ID_MSIX ? "-X" : "");
+		irq++;
 	}
 	return 0;
 
