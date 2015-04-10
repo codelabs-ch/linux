@@ -31,11 +31,13 @@ void muchannel_initialize(struct muchannel *channel, const u64 protocol,
 
 	atomic64_set(&channel->hdr.epoch, epoch);
 }
+EXPORT_SYMBOL(muchannel_initialize);
 
 void muchannel_deactivate(struct muchannel *channel)
 {
 	atomic64_set(&channel->hdr.epoch, NULL_EPOCH);
 }
+EXPORT_SYMBOL(muchannel_deactivate);
 
 void muchannel_write(struct muchannel *channel, const void *const element)
 {
@@ -52,3 +54,4 @@ void muchannel_write(struct muchannel *channel, const void *const element)
 	memcpy(channel->data + pos * size, element, size);
 	atomic64_set(&channel->hdr.wc, wc);
 }
+EXPORT_SYMBOL(muchannel_write);
