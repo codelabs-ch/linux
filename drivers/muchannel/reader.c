@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2013, 2014  Reto Buerki <reet@codelabs.ch>
- * Copyright (C) 2013, 2014  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ * Copyright (C) 2013-2015  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2013-2015  Adrian-Ken Rueegsegger <ken@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,23 +26,18 @@ static enum reader_result synchronize(const struct muchannel *const channel,
 {
 	enum reader_result result;
 
-	if (is_active(channel))
-		if (reader->protocol == atomic64_read(&channel->hdr.protocol) &&
-		    SHMSTREAM20 == atomic64_read(&channel->hdr.transport)) {
-			reader->epoch = atomic64_read(&channel->hdr.epoch);
-			reader->size = atomic64_read(&channel->hdr.size);
-			reader->elements =
-			    atomic64_read(&channel->hdr.elements);
-			reader->rc = 0;
+	if (reader->protocol == atomic64_read(&channel->hdr.protocol) &&
+		SHMSTREAM20 == atomic64_read(&channel->hdr.transport)) {
 
-			if (has_epoch_changed(channel, reader))
-				result = EPOCH_CHANGED;
-			else
-				result = SUCCESS;
-		} else
-			result = INCOMPATIBLE_INTERFACE;
-	else
-		result = INACTIVE;
+		reader->epoch = atomic64_read(&channel->hdr.epoch);
+		reader->size = atomic64_read(&channel->hdr.size);
+		reader->elements =
+			atomic64_read(&channel->hdr.elements);
+		reader->rc = 0;
+
+		result = EPOCH_CHANGED;
+	} else
+		result = INCOMPATIBLE_INTERFACE;
 
 	return result;
 };
@@ -65,11 +60,8 @@ enum reader_result muchannel_read(const struct muchannel *const channel,
 	enum reader_result result;
 
 	if (is_active(channel)) {
-		if (reader->epoch == NULL_EPOCH || has_epoch_changed(channel, reader)) {
-			result = synchronize(channel, reader);
-			if (result != SUCCESS)
-				return result;
-		}
+		if (has_epoch_changed(channel, reader))
+			return synchronize(channel, reader);
 
 		if (reader->rc >= atomic64_read(&channel->hdr.wc))
 			result = NO_DATA;
