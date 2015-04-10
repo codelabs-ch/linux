@@ -19,3 +19,4 @@ bool is_active(const struct muchannel *const channel)
 {
 	return atomic64_read(&channel->hdr.epoch) != NULL_EPOCH;
 }
+EXPORT_SYMBOL(is_active);

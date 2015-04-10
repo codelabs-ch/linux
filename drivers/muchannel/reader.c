@@ -55,6 +55,7 @@ void muchannel_init(struct muchannel_reader *reader, u64 protocol)
 	reader->elements = 0;
 	reader->rc = 0;
 };
+EXPORT_SYMBOL(muchannel_init);
 
 enum reader_result muchannel_read(const struct muchannel *const channel,
 				  struct muchannel_reader *reader,
@@ -93,9 +94,11 @@ enum reader_result muchannel_read(const struct muchannel *const channel,
 
 	return result;
 };
+EXPORT_SYMBOL(muchannel_read);
 
 void muchannel_drain(const struct muchannel *const channel,
 		     struct muchannel_reader *reader)
 {
 	reader->rc = atomic64_read(&channel->hdr.wc);
 };
+EXPORT_SYMBOL(muchannel_drain);
