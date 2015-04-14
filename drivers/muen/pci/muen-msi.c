@@ -29,6 +29,15 @@
 #include <asm/x86_init.h>
 
 /**
+ * IRQ chip for PCI MSI/MSI-x interrupts
+ */
+static struct irq_chip msi_chip = {
+	.name        = "Muen-MSI",
+	.irq_mask    = mask_msi_irq,
+	.irq_unmask  = unmask_msi_irq,
+};
+
+/**
  * Returns the MSI handle of the given PCI device. The value is encoded
  * in the _PRT entry which has a PIN value greater than 3.
  */
@@ -97,7 +106,6 @@ static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 		unsigned int irq_base, unsigned int irq_offset)
 {
-	struct irq_chip *chip = &dummy_irq_chip;
 	unsigned int const irq = irq_base + irq_offset;
 	struct msi_msg msg;
 	int ret;
@@ -115,7 +123,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 		write_msi_msg(irq, &msg);
 	}
 
-	irq_set_chip_and_handler_name(irq, chip, handle_edge_irq, "edge");
+	irq_set_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
 	return 0;
 }
