@@ -586,8 +586,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	/* Start handling the irq */
-	if (desc->irq_data.chip->irq_ack)
-		desc->irq_data.chip->irq_ack(&desc->irq_data);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	do {
 		if (unlikely(!desc->action)) {
