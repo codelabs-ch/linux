@@ -38,6 +38,7 @@ static struct irq_chip msi_chip = {
 	.irq_ack     = noop,
 	.irq_mask    = mask_msi_irq,
 	.irq_unmask  = unmask_msi_irq,
+	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 
 /**
