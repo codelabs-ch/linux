@@ -28,11 +28,14 @@
 #include <asm/msidef.h>
 #include <asm/x86_init.h>
 
+static void noop(struct irq_data *data) { }
+
 /**
  * IRQ chip for PCI MSI/MSI-x interrupts
  */
 static struct irq_chip msi_chip = {
 	.name        = "Muen-MSI",
+	.irq_ack     = noop,
 	.irq_mask    = mask_msi_irq,
 	.irq_unmask  = unmask_msi_irq,
 };
