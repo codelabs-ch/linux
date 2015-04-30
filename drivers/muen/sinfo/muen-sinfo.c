@@ -18,6 +18,8 @@
  * 02110-1301, USA.
  */
 
+#include <asm/io.h>
+
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/printk.h>
@@ -220,11 +222,14 @@ static void fill_memregion_data(uint8_t idx, struct muen_memregion_info *region)
 
 void __init muen_sinfo_early_init(void)
 {
+	/* This call site is too early to create mapping using ioremap */
 	sinfo = (struct subject_info_type *)__va(sinfo_addr);
 }
 
 static int __init muen_sinfo_init(void)
 {
+	sinfo = (struct subject_info_type *)ioremap_cache(sinfo_addr,
+			sizeof(struct subject_info_type));
 	if (!muen_check_magic()) {
 		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
 		return -EINVAL;
@@ -242,7 +247,7 @@ static int __init muen_sinfo_init(void)
 	return 0;
 }
 
-module_init(muen_sinfo_init);
+console_initcall(muen_sinfo_init);
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
 MODULE_DESCRIPTION("Muen subject information driver");
