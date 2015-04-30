@@ -32,6 +32,12 @@ struct muen_channel_info {
 };
 
 /*
+ * Initialize Muen subject info data for early use when ioremap is not yet
+ * available.
+ */
+void __init muen_sinfo_early_init(void);
+
+/*
  * Check Muen sinfo Magic.
  */
 bool muen_check_magic(void);

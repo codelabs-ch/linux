@@ -26,10 +26,17 @@
 
 #include "musinfo.h"
 
-#define SINFO_BASE 0x00014000
+static unsigned long long sinfo_addr;
+static int __init setup_sinfo_addr(char *arg)
+{
+	if (kstrtoull(arg, 16, &sinfo_addr))
+		return -EINVAL;
 
-static const struct subject_info_type *
-const sinfo = (struct subject_info_type *)__va(SINFO_BASE);
+	return 0;
+}
+early_param("muen_sinfo", setup_sinfo_addr);
+
+static const struct subject_info_type * sinfo;
 
 /* Fill channel struct with channel information from resource given by index */
 static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
@@ -211,6 +218,11 @@ static void fill_memregion_data(uint8_t idx, struct muen_memregion_info *region)
 	region->executable = memregion.flags & MEM_EXECUTABLE_FLAG;
 }
 
+void __init muen_sinfo_early_init(void)
+{
+	sinfo = (struct subject_info_type *)__va(sinfo_addr);
+}
+
 static int __init muen_sinfo_init(void)
 {
 	if (!muen_check_magic()) {
@@ -218,6 +230,7 @@ static int __init muen_sinfo_init(void)
 		return -EINVAL;
 	}
 
+	pr_info("muen-sinfo: Subject information @ 0x%016llx\n", sinfo_addr);
 	pr_info("muen-sinfo: Subject information exports %d memory region(s)\n",
 			sinfo->memregion_count);
 	muen_for_each_memregion(log_memregion, NULL);
