@@ -1,6 +1,8 @@
 #ifndef MUEN_SINFO_H
 #define MUEN_SINFO_H
 
+#include <linux/init.h>
+
 #define MAX_CHANNEL_NAME_LEN 63
 
 /*
