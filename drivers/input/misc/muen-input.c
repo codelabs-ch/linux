@@ -25,6 +25,8 @@
 #include <muen/reader.h>
 #include <muen/sinfo.h>
 
+#define MUEN_PROTO_INPUT 0x9a0a8679dbc22dcbULL
+
 struct muen_key_info {
 	uint8_t keycode;	/* KEY_* value, as specified in linux/input.h */
 	uint8_t pressed;	/* 1 if key way pressed, 0 otherwise */
@@ -139,7 +141,7 @@ static int __init muen_input_init(void)
 		goto error_register_kbd;
 	}
 
-	muen_channel_init_reader(&muen_input->reader, 2);
+	muen_channel_init_reader(&muen_input->reader, MUEN_PROTO_INPUT);
 
 	return 0;
 
