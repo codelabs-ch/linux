@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 
 #include <muen/reader.h>
@@ -78,7 +79,8 @@ static int __init muen_kbd_init(void)
 	pr_info("muen-kbd: Using keyboard channel at address 0x%llx, IRQ %d\n",
 			channel.address, irq_number);
 
-	channel_in = (struct muchannel *)__va(channel.address);
+	channel_in = (struct muchannel *)ioremap_cache(channel.address,
+			channel.size);
 	muen_kbd_res.start = irq_number;
 	muen_kbd_res.end   = irq_number;
 
@@ -136,6 +138,7 @@ static void __exit muen_kbd_cleanup(void)
 	input_unregister_device(muen_kbd->dev);
 	platform_device_unregister(muen_kbd->pdev);
 	kfree(muen_kbd);
+	iounmap(channel_in);
 }
 
 module_init(muen_kbd_init);
