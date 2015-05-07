@@ -811,7 +811,7 @@ config INPUT_MUEN_KBD
 	tristate "Muen virtual keyboard support"
 	depends on MUEN_SINFO
 	default n
-	select MUCHANNEL
+	select MUEN_CHANNEL
 	help
 	  This driver implements the Muen virtual keyboard device driver. It
 	  processes keyboard input via a shared memory channel.
