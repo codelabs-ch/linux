@@ -59,7 +59,7 @@ enum reader_result muchannel_read(const struct muchannel *const channel,
 	u64 pos, rc;
 	enum reader_result result;
 
-	if (is_active(channel)) {
+	if (muen_channel_is_active(channel)) {
 		if (has_epoch_changed(channel, reader))
 			return synchronize(channel, reader);
 
