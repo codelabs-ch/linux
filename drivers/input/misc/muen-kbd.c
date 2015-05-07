@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2013, 2014  Reto Buerki <reet@codelabs.ch>
- * Copyright (C) 2013, 2014  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ * Copyright (C) 2013-2015  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2013-2015  Adrian-Ken Rueegsegger <ken@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ static irqreturn_t handle_muen_kbd_int(int rq, void *dev_id)
 	struct muen_dev *kbd = dev_id;
 	struct muen_key_info info;
 
-	while (muchannel_read(channel_in, &reader, &info) == SUCCESS) {
+	while (muen_channel_read(channel_in, &reader, &info) == SUCCESS) {
 		input_report_key(kbd->dev, info.keycode, info.pressed);
 		input_sync(kbd->dev);
 	}
@@ -116,7 +116,7 @@ static int __init muen_kbd_init(void)
 	if (error)
 		return error;
 
-	muchannel_init(&reader, 2);
+	muen_channel_init_reader(&reader, 2);
 
 	error = input_register_device(muen_kbd->dev);
 	if (error) {
