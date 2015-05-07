@@ -21,10 +21,11 @@ static bool has_epoch_changed(const struct muchannel *const channel,
 	return reader->epoch != atomic64_read(&channel->hdr.epoch);
 };
 
-static enum reader_result synchronize(const struct muchannel *const channel,
-				      struct muchannel_reader *reader)
+static enum muchannel_reader_result synchronize(
+		const struct muchannel *const channel,
+		struct muchannel_reader *reader)
 {
-	enum reader_result result;
+	enum muchannel_reader_result result;
 
 	if (reader->protocol == atomic64_read(&channel->hdr.protocol) &&
 		SHMSTREAM20 == atomic64_read(&channel->hdr.transport)) {
@@ -52,12 +53,13 @@ void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol)
 };
 EXPORT_SYMBOL(muen_channel_init_reader);
 
-enum reader_result muen_channel_read(const struct muchannel *const channel,
-				     struct muchannel_reader *reader,
-				     void *element)
+enum muchannel_reader_result muen_channel_read(
+		const struct muchannel *const channel,
+		struct muchannel_reader *reader,
+		void *element)
 {
 	u64 pos, rc;
-	enum reader_result result;
+	enum muchannel_reader_result result;
 
 	if (muen_channel_is_active(channel)) {
 		if (has_epoch_changed(channel, reader))
