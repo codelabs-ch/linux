@@ -35,9 +35,9 @@ static enum reader_result synchronize(const struct muchannel *const channel,
 			atomic64_read(&channel->hdr.elements);
 		reader->rc = 0;
 
-		result = EPOCH_CHANGED;
+		result = MUCHANNEL_EPOCH_CHANGED;
 	} else
-		result = INCOMPATIBLE_INTERFACE;
+		result = MUCHANNEL_INCOMPATIBLE_INTERFACE;
 
 	return result;
 };
@@ -64,7 +64,7 @@ enum reader_result muen_channel_read(const struct muchannel *const channel,
 			return synchronize(channel, reader);
 
 		if (reader->rc >= atomic64_read(&channel->hdr.wc))
-			result = NO_DATA;
+			result = MUCHANNEL_NO_DATA;
 		else {
 			rc = reader->rc;
 			pos = do_div(rc, reader->elements) * reader->size;
@@ -72,17 +72,17 @@ enum reader_result muen_channel_read(const struct muchannel *const channel,
 
 			if (atomic64_read(&channel->hdr.wsc) >
 			    reader->rc + reader->elements) {
-				result = OVERRUN_DETECTED;
+				result = MUCHANNEL_OVERRUN_DETECTED;
 				reader->rc = atomic64_read(&channel->hdr.wc);
 			} else {
-				result = SUCCESS;
+				result = MUCHANNEL_SUCCESS;
 				reader->rc = reader->rc + 1;
 			}
 			if (has_epoch_changed(channel, reader))
-				result = EPOCH_CHANGED;
+				result = MUCHANNEL_EPOCH_CHANGED;
 		}
 	} else
-		result = INACTIVE;
+		result = MUCHANNEL_INACTIVE;
 
 	return result;
 };

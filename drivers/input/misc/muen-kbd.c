@@ -45,7 +45,8 @@ static irqreturn_t handle_muen_kbd_int(int rq, void *dev_id)
 	struct muen_dev *kbd = dev_id;
 	struct muen_key_info info;
 
-	while (muen_channel_read(channel_in, &reader, &info) == SUCCESS) {
+	while (muen_channel_read(channel_in, &reader, &info)
+			== MUCHANNEL_SUCCESS) {
 		input_report_key(kbd->dev, info.keycode, info.pressed);
 		input_sync(kbd->dev);
 	}
