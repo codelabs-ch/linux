@@ -42,7 +42,7 @@ static enum reader_result synchronize(const struct muchannel *const channel,
 	return result;
 };
 
-void muchannel_init(struct muchannel_reader *reader, u64 protocol)
+void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol)
 {
 	reader->epoch = NULL_EPOCH;
 	reader->protocol = protocol;
@@ -50,11 +50,11 @@ void muchannel_init(struct muchannel_reader *reader, u64 protocol)
 	reader->elements = 0;
 	reader->rc = 0;
 };
-EXPORT_SYMBOL(muchannel_init);
+EXPORT_SYMBOL(muen_channel_init_reader);
 
-enum reader_result muchannel_read(const struct muchannel *const channel,
-				  struct muchannel_reader *reader,
-				  void *element)
+enum reader_result muen_channel_read(const struct muchannel *const channel,
+				     struct muchannel_reader *reader,
+				     void *element)
 {
 	u64 pos, rc;
 	enum reader_result result;
@@ -86,11 +86,11 @@ enum reader_result muchannel_read(const struct muchannel *const channel,
 
 	return result;
 };
-EXPORT_SYMBOL(muchannel_read);
+EXPORT_SYMBOL(muen_channel_read);
 
-void muchannel_drain(const struct muchannel *const channel,
-		     struct muchannel_reader *reader)
+void muen_channel_drain(const struct muchannel *const channel,
+			struct muchannel_reader *reader)
 {
 	reader->rc = atomic64_read(&channel->hdr.wc);
 };
-EXPORT_SYMBOL(muchannel_drain);
+EXPORT_SYMBOL(muen_channel_drain);
