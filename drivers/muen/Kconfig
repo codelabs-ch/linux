@@ -1,5 +1,11 @@
 menu "Muen driver support"
 
+config MUEN_CHANNEL
+	bool "Muen shared memory channels"
+	help
+	  This option is selected by any driver that uses the Muen shared memory
+	  channels.
+
 config MUEN_SINFO
 	bool "Muen subject information driver"
 	depends on X86
