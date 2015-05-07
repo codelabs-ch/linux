@@ -9,8 +9,8 @@
  * Robert Dorn, 2013, unpublished.
  */
 
-#define SHMSTREAM20 0x487312b6b79a9b6dULL
-#define NULL_EPOCH	0
+#define SHMSTREAM20		0x487312b6b79a9b6dULL
+#define MUCHANNEL_NULL_EPOCH	0
 
 #include <linux/atomic.h>
 
