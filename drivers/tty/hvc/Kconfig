@@ -118,7 +118,7 @@ config HVC_MUEN
 	bool "Muen virtual console"
 	depends on MUEN_SINFO
 	select HVC_DRIVER
-	select MUCHAN
+	select MUEN_CHANNEL
 	default n
 	help
 	  Muen virtual console
