@@ -17,6 +17,6 @@
 
 bool muen_channel_is_active(const struct muchannel *const channel)
 {
-	return atomic64_read(&channel->hdr.epoch) != NULL_EPOCH;
+	return atomic64_read(&channel->hdr.epoch) != MUCHANNEL_NULL_EPOCH;
 }
 EXPORT_SYMBOL(muen_channel_is_active);
