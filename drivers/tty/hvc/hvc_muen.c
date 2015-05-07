@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2013  Reto Buerki <reet@codelabs.ch>
- * Copyright (C) 2013  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ * Copyright (C) 2013, 2015  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2013, 2015  Adrian-Ken Rueegsegger <ken@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ static int hvc_muen_put(uint32_t vtermno, const char *buf, int count)
 	int i;
 
 	for (i = 0; i < count; i++)
-		muchannel_write(channel_out, &buf[i]);
+		muen_channel_write(channel_out, &buf[i]);
 
 	kvm_hypercall0(event_number);
 
@@ -77,7 +77,7 @@ static void __exit hvc_muen_exit(void)
 	if (hvc_muen_dev)
 		hvc_remove(hvc_muen_dev);
 
-	muchannel_deactivate(channel_out);
+	muen_channel_deactivate(channel_out);
 }
 
 module_exit(hvc_muen_exit);
@@ -103,7 +103,7 @@ static int __init hvc_muen_console_init(void)
 
 	channel_out = (struct muchannel *)__va(channel.address);
 
-	muchannel_initialize(channel_out, 1, 1,
+	muen_channel_init_writer(channel_out, 1, 1,
 			channel_size - sizeof(struct muchannel_header), 1);
 	hvc_instantiate(HVC_MUEN_COOKIE, 0, &hvc_muen_ops);
 
