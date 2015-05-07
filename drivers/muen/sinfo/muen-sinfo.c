@@ -48,16 +48,72 @@ early_param("muen_sinfo", setup_sinfo_addr);
 
 static const struct subject_info_type * sinfo;
 
-/* Fill channel struct with channel information from resource given by index */
-static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel);
-
-/* Fill memregion struct with memory region info from resource given by index */
-static void fill_memregion_data(uint8_t idx,
-		struct muen_memregion_info *region);
-
-/* Log channel information */
 static bool log_channel(const struct muen_channel_info * const channel,
-		void *data);
+		void *data)
+{
+	if (channel->has_event || channel->has_vector) {
+		pr_info("muen-sinfo: [%s with %s %03d] %s\n",
+				channel->writable ? "writer" : "reader",
+				channel->has_event ? "event " : "vector",
+				channel->has_event ?
+					channel->event_number : channel->vector,
+				channel->name);
+	} else {
+		pr_info("muen-sinfo: [%s with no %s ] %s\n",
+			channel->writable ? "writer" : "reader",
+			channel->writable ? "event " : "vector",
+			channel->name);
+	}
+
+	return true;
+}
+
+static bool log_memregion(const struct muen_memregion_info * const region,
+		void *data)
+{
+	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s%s] %s\n",
+			region->address, region->size,
+			region->writable ? "rw" : "ro",
+			region->executable ? "x" : "-", region->name);
+
+	return true;
+}
+
+static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel)
+{
+	const struct resource_type resource = sinfo->resources[idx];
+	const struct memregion_type memregion =
+		sinfo->memregions[resource.memregion_idx - 1];
+	const struct channel_info_type channel_info =
+		sinfo->channels_info[resource.channel_info_idx - 1];
+
+	memset(&channel->name, 0, MAX_NAME_LENGTH + 1);
+	memcpy(&channel->name, resource.name.data, resource.name.length);
+
+	channel->address  = memregion.address;
+	channel->size     = memregion.size;
+	channel->writable = memregion.flags & MEM_WRITABLE_FLAG;
+
+	channel->has_event    = channel_info.flags & CHAN_EVENT_FLAG;
+	channel->event_number = channel_info.event;
+	channel->has_vector   = channel_info.flags & CHAN_VECTOR_FLAG;
+	channel->vector       = channel_info.vector;
+}
+
+static void fill_memregion_data(uint8_t idx, struct muen_memregion_info *region)
+{
+	const struct resource_type resource = sinfo->resources[idx];
+	const struct memregion_type memregion =
+		sinfo->memregions[resource.memregion_idx - 1];
+
+	memset(&region->name, 0, MAX_NAME_LENGTH + 1);
+	memcpy(&region->name, resource.name.data, resource.name.length);
+
+	region->address    = memregion.address;
+	region->size       = memregion.size;
+	region->writable   = memregion.flags & MEM_WRITABLE_FLAG;
+	region->executable = memregion.flags & MEM_EXECUTABLE_FLAG;
+}
 
 static bool is_memregion(const struct resource_type * const resource)
 {
@@ -161,72 +217,6 @@ uint64_t muen_get_tsc_khz(void)
 	return sinfo->tsc_khz;
 }
 EXPORT_SYMBOL(muen_get_tsc_khz);
-
-static bool log_channel(const struct muen_channel_info * const channel,
-		void *data)
-{
-	if (channel->has_event || channel->has_vector) {
-		pr_info("muen-sinfo: [%s with %s %03d] %s\n",
-				channel->writable ? "writer" : "reader",
-				channel->has_event ? "event " : "vector",
-				channel->has_event ? channel->event_number : channel->vector,
-				channel->name);
-	} else {
-		pr_info("muen-sinfo: [%s with no %s ] %s\n",
-			channel->writable ? "writer" : "reader",
-			channel->writable ? "event " : "vector",
-			channel->name);
-	}
-
-	return true;
-}
-
-static bool log_memregion(const struct muen_memregion_info * const region,
-		void *data)
-{
-	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s%s] %s\n",
-			region->address, region->size,
-			region->writable ? "rw" : "ro",
-			region->executable ? "x" : "-", region->name);
-
-	return true;
-}
-
-static void fill_channel_data(uint8_t idx, struct muen_channel_info *channel)
-{
-	const struct resource_type resource = sinfo->resources[idx];
-	const struct memregion_type memregion =
-		sinfo->memregions[resource.memregion_idx - 1];
-	const struct channel_info_type channel_info =
-		sinfo->channels_info[resource.channel_info_idx - 1];
-
-	memset(&channel->name, 0, MAX_NAME_LENGTH + 1);
-	memcpy(&channel->name, resource.name.data, resource.name.length);
-
-	channel->address  = memregion.address;
-	channel->size     = memregion.size;
-	channel->writable = memregion.flags & MEM_WRITABLE_FLAG;
-
-	channel->has_event    = channel_info.flags & CHAN_EVENT_FLAG;
-	channel->event_number = channel_info.event;
-	channel->has_vector   = channel_info.flags & CHAN_VECTOR_FLAG;
-	channel->vector       = channel_info.vector;
-}
-
-static void fill_memregion_data(uint8_t idx, struct muen_memregion_info *region)
-{
-	const struct resource_type resource = sinfo->resources[idx];
-	const struct memregion_type memregion =
-		sinfo->memregions[resource.memregion_idx - 1];
-
-	memset(&region->name, 0, MAX_NAME_LENGTH + 1);
-	memcpy(&region->name, resource.name.data, resource.name.length);
-
-	region->address    = memregion.address;
-	region->size       = memregion.size;
-	region->writable   = memregion.flags & MEM_WRITABLE_FLAG;
-	region->executable = memregion.flags & MEM_EXECUTABLE_FLAG;
-}
 
 void __init muen_sinfo_early_init(void)
 {
