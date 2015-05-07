@@ -38,7 +38,7 @@ obj-y				+= soc/
 
 obj-$(CONFIG_VIRTIO)		+= virtio/
 obj-$(CONFIG_XEN)		+= xen/
-obj-$(CONFIG_MUCHANNEL)		+= muchannel/
+obj-$(CONFIG_MUEN_CHANNEL)	+= muen/channel/
 obj-$(CONFIG_MUEN_SINFO)	+= muen/sinfo/
 obj-$(CONFIG_MUEN_PCI_MSI)	+= muen/pci/
 
