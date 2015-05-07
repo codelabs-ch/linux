@@ -36,7 +36,7 @@ EXPORT_SYMBOL(muen_channel_init_writer);
 
 void muen_channel_deactivate(struct muchannel *channel)
 {
-	atomic64_set(&channel->hdr.epoch, NULL_EPOCH);
+	atomic64_set(&channel->hdr.epoch, MUCHANNEL_NULL_EPOCH);
 }
 EXPORT_SYMBOL(muen_channel_deactivate);
 

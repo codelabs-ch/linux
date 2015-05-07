@@ -44,7 +44,7 @@ static enum reader_result synchronize(const struct muchannel *const channel,
 
 void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol)
 {
-	reader->epoch = NULL_EPOCH;
+	reader->epoch = MUCHANNEL_NULL_EPOCH;
 	reader->protocol = protocol;
 	reader->size = 0;
 	reader->elements = 0;
