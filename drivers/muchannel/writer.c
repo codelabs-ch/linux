@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2013, 2014  Reto Buerki <reet@codelabs.ch>
- * Copyright (C) 2013, 2014  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ * Copyright (C) 2013-2015  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2013-2015  Adrian-Ken Rueegsegger <ken@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,10 +15,11 @@
 
 #include <muen/writer.h>
 
-void muchannel_initialize(struct muchannel *channel, const u64 protocol,
-			  const u64 size, const u64 elements, const u64 epoch)
+void muen_channel_init_writer(struct muchannel *channel, const u64 protocol,
+			      const u64 size, const u64 elements,
+			      const u64 epoch)
 {
-	muchannel_deactivate(channel);
+	muen_channel_deactivate(channel);
 
 	memset(channel, 0, sizeof(struct muchannel));
 
@@ -31,15 +32,15 @@ void muchannel_initialize(struct muchannel *channel, const u64 protocol,
 
 	atomic64_set(&channel->hdr.epoch, epoch);
 }
-EXPORT_SYMBOL(muchannel_initialize);
+EXPORT_SYMBOL(muen_channel_init_writer);
 
-void muchannel_deactivate(struct muchannel *channel)
+void muen_channel_deactivate(struct muchannel *channel)
 {
 	atomic64_set(&channel->hdr.epoch, NULL_EPOCH);
 }
-EXPORT_SYMBOL(muchannel_deactivate);
+EXPORT_SYMBOL(muen_channel_deactivate);
 
-void muchannel_write(struct muchannel *channel, const void *const element)
+void muen_channel_write(struct muchannel *channel, const void *const element)
 {
 	u64 wc, pos, size, tmp;
 
@@ -54,4 +55,4 @@ void muchannel_write(struct muchannel *channel, const void *const element)
 	memcpy(channel->data + pos * size, element, size);
 	atomic64_set(&channel->hdr.wc, wc);
 }
-EXPORT_SYMBOL(muchannel_write);
+EXPORT_SYMBOL(muen_channel_write);
