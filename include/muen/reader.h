@@ -3,7 +3,7 @@
 
 #include <muen/channel.h>
 
-enum reader_result {
+enum muchannel_reader_result {
 	MUCHANNEL_INACTIVE,
 	MUCHANNEL_INCOMPATIBLE_INTERFACE,
 	MUCHANNEL_EPOCH_CHANGED,
@@ -28,9 +28,10 @@ void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol);
 /*
  * Read next element from given channel.
  */
-enum reader_result muen_channel_read(const struct muchannel *const channel,
-				     struct muchannel_reader *reader,
-				     void *element);
+enum muchannel_reader_result muen_channel_read(
+		const struct muchannel *const channel,
+		struct muchannel_reader *reader,
+		void *element);
 
 /*
  * Drain all current channel elements.
