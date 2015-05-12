@@ -15,7 +15,7 @@
 
 #include <muen/channel.h>
 
-bool muen_channel_is_active(const struct muchannel *const channel)
+bool muen_channel_is_active(const struct muchannel * const channel)
 {
 	return atomic64_read(&channel->hdr.epoch) != MUCHANNEL_NULL_EPOCH;
 }

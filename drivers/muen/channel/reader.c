@@ -15,14 +15,14 @@
 
 #include <muen/reader.h>
 
-static bool has_epoch_changed(const struct muchannel *const channel,
-			      const struct muchannel_reader *const reader)
+static bool has_epoch_changed(const struct muchannel * const channel,
+			      const struct muchannel_reader * const reader)
 {
 	return reader->epoch != atomic64_read(&channel->hdr.epoch);
 };
 
 static enum muchannel_reader_result synchronize(
-		const struct muchannel *const channel,
+		const struct muchannel * const channel,
 		struct muchannel_reader *reader)
 {
 	enum muchannel_reader_result result;
@@ -54,7 +54,7 @@ void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol)
 EXPORT_SYMBOL(muen_channel_init_reader);
 
 enum muchannel_reader_result muen_channel_read(
-		const struct muchannel *const channel,
+		const struct muchannel * const channel,
 		struct muchannel_reader *reader,
 		void *element)
 {
@@ -90,7 +90,7 @@ enum muchannel_reader_result muen_channel_read(
 };
 EXPORT_SYMBOL(muen_channel_read);
 
-void muen_channel_drain(const struct muchannel *const channel,
+void muen_channel_drain(const struct muchannel * const channel,
 			struct muchannel_reader *reader)
 {
 	reader->rc = atomic64_read(&channel->hdr.wc);
