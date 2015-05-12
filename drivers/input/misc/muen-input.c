@@ -87,11 +87,32 @@ static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 		case MUEN_EV_RESET:
 			/* XXX: ignored */
 			break;
+		case MUEN_EV_MOTION:
+			if (info.rel_x != 0)
+				input_report_rel(input_dev->ptr, REL_X,
+					info.rel_x);
+			if (info.rel_y != 0)
+				input_report_rel(input_dev->ptr, REL_Y,
+					info.rel_y);
+			input_sync(input_dev->ptr);
+			break;
+		case MUEN_EV_WHEEL:
+			if (info.rel_x != 0)
+				input_report_rel(input_dev->ptr, REL_HWHEEL,
+					info.rel_x);
+			if (info.rel_y != 0)
+				input_report_rel(input_dev->ptr, REL_WHEEL,
+					info.rel_y);
+			input_sync(input_dev->ptr);
+			break;
 		case MUEN_EV_PRESS:
 			key_press = true;
 		case MUEN_EV_RELEASE:
-			if (info.keycode < BTN_LEFT) {
+			if (info.keycode < BTN_LEFT)
 				dev = input_dev->kbd;
+			if (info.keycode >= BTN_LEFT)
+				dev = input_dev->ptr;
+			if (dev) {
 				input_report_key(dev, info.keycode, key_press);
 				input_sync(dev);
 			} else
