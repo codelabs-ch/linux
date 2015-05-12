@@ -58,6 +58,7 @@ struct muen_input_event {
 struct muen_dev {
 	struct platform_device *pdev;
 	struct input_dev *kbd;
+	struct input_dev *ptr;
 	int irq;
 	struct muchannel_reader reader;
 	struct muchannel *channel;
