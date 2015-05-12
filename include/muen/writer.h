@@ -7,7 +7,7 @@
  * Initialize channel with given parameters.
  */
 void muen_channel_init_writer(struct muchannel *channel, const u64 protocol,
-			      const u64 element_size, const u64 elements,
+			      const u64 element_size, const u64 channel_size,
 			      const u64 epoch);
 
 /**
