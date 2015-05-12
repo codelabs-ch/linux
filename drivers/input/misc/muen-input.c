@@ -27,11 +27,34 @@
 
 #define MUEN_PROTO_INPUT 0x9a0a8679dbc22dcbULL
 
-struct muen_key_info {
-	uint8_t keycode;	/* KEY_* value, as specified in linux/input.h */
-	uint8_t pressed;	/* 1 if key way pressed, 0 otherwise */
+/**
+ * Muen input event types
+ */
+enum muen_event_type {
+	MUEN_EV_RESET = 0,
+	MUEN_EV_MOTION,
+	MUEN_EV_WHEEL,
+	MUEN_EV_PRESS,
+	MUEN_EV_RELEASE,
+};
+
+/**
+ * Muen input event information
+ *
+ * Objects of this type are read from the memory channel.
+ */
+struct muen_input_event {
+	uint32_t event_type;
+	uint32_t keycode;	/* KEY_* value, as specified in linux/input.h */
+	int32_t  rel_x;		/* Relative pointer motion on X-Axis          */
+	int32_t  rel_y;		/* Relative pointer motion on Y-Axis          */
+	uint32_t led_state;	/* State of keyboard LEDs                     */
+	uint32_t key_count;	/* Number of key repetitions                  */
 } __packed;
 
+/**
+ * Muen input device
+ */
 struct muen_dev {
 	struct platform_device *pdev;
 	struct input_dev *kbd;
@@ -50,12 +73,34 @@ MODULE_PARM_DESC(channel,
 static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 {
 	struct muen_dev *input_dev = dev_id;
-	struct muen_key_info info;
+	struct muen_input_event info;
+	struct input_dev *dev;
+	bool key_press;
 
 	while (muen_channel_read(input_dev->channel, &input_dev->reader, &info)
 			== MUCHANNEL_SUCCESS) {
-		input_report_key(input_dev->kbd, info.keycode, info.pressed);
-		input_sync(input_dev->kbd);
+		dev = NULL;
+		key_press = false;
+
+		switch (info.event_type) {
+		case MUEN_EV_RESET:
+			/* XXX: ignored */
+			break;
+		case MUEN_EV_PRESS:
+			key_press = true;
+		case MUEN_EV_RELEASE:
+			if (info.keycode < BTN_LEFT) {
+				dev = input_dev->kbd;
+				input_report_key(dev, info.keycode, key_press);
+				input_sync(dev);
+			} else
+				pr_warn("muen-input: unhandled keycode 0x%x\n",
+					info.keycode);
+			break;
+		default:
+			pr_warn("muen-input: unknown event type %d\n",
+				info.event_type);
+		}
 	}
 
 	return IRQ_HANDLED;
