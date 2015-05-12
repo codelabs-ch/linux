@@ -103,8 +103,7 @@ static int __init hvc_muen_console_init(void)
 
 	channel_out = (struct muchannel *)__va(channel.address);
 
-	muen_channel_init_writer(channel_out, 1, 1,
-			channel_size - sizeof(struct muchannel_header), 1);
+	muen_channel_init_writer(channel_out, 1, 1, channel_size, 1);
 	hvc_instantiate(HVC_MUEN_COOKIE, 0, &hvc_muen_ops);
 
 	return 0;
