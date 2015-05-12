@@ -43,7 +43,7 @@ void muen_channel_deactivate(struct muchannel *channel)
 }
 EXPORT_SYMBOL(muen_channel_deactivate);
 
-void muen_channel_write(struct muchannel *channel, const void *const element)
+void muen_channel_write(struct muchannel *channel, const void * const element)
 {
 	u64 wc, pos, size, tmp;
 
