@@ -16,7 +16,7 @@
 #include <muen/writer.h>
 
 void muen_channel_init_writer(struct muchannel *channel, const u64 protocol,
-			      const u64 size, const u64 elements,
+			      const u64 element_size, const u64 elements,
 			      const u64 epoch)
 {
 	muen_channel_deactivate(channel);
@@ -25,7 +25,7 @@ void muen_channel_init_writer(struct muchannel *channel, const u64 protocol,
 
 	atomic64_set(&channel->hdr.transport, SHMSTREAM20);
 	atomic64_set(&channel->hdr.protocol, protocol);
-	atomic64_set(&channel->hdr.size, size);
+	atomic64_set(&channel->hdr.size, element_size);
 	atomic64_set(&channel->hdr.elements, elements);
 	atomic64_set(&channel->hdr.wsc, 0);
 	atomic64_set(&channel->hdr.wc, 0);
