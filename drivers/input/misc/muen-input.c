@@ -173,6 +173,30 @@ static int __init muen_input_init(void)
 	for (i = KEY_OK; i < KEY_MAX; i++)
 		__set_bit(i, muen_input->kbd->keybit);
 
+	/* pointing/mouse device */
+	muen_input->ptr = input_allocate_device();
+	if (!muen_input->ptr) {
+		pr_err("muen-input: Unable to allocate mouse input device\n");
+		error = -ENOMEM;
+		goto error_alloc_ptr;
+	}
+
+	muen_input->ptr->name = "Muen Virtual Pointer";
+	muen_input->ptr->phys = "muen-input/input1";
+	muen_input->ptr->id.bustype = BUS_HOST;
+	muen_input->ptr->id.vendor = 0x0001;
+	muen_input->ptr->id.product = 0x0001;
+	muen_input->ptr->id.version = 0x0001;
+
+	input_set_capability(muen_input->ptr, EV_REL, REL_X);
+	input_set_capability(muen_input->ptr, EV_REL, REL_Y);
+	input_set_capability(muen_input->ptr, EV_REL, REL_WHEEL);
+	input_set_capability(muen_input->ptr, EV_REL, REL_HWHEEL);
+
+	__set_bit(EV_KEY, muen_input->ptr->evbit);
+	for (i = BTN_LEFT; i <= BTN_TASK; i++)
+		__set_bit(i, muen_input->ptr->keybit);
+
 	error = request_irq(muen_input->irq, handle_muen_input_int, 0,
 			    "muen-input", muen_input);
 	if (error) {
@@ -187,14 +211,26 @@ static int __init muen_input_init(void)
 		goto error_register_kbd;
 	}
 
+	error = input_register_device(muen_input->ptr);
+	if (error) {
+		pr_err("muen-input: Unable to register mouse as input device\n");
+		goto error_register_ptr;
+	}
+
 	muen_channel_init_reader(&muen_input->reader, MUEN_PROTO_INPUT);
 
 	return 0;
 
+error_register_ptr:
+	input_unregister_device(muen_input->kbd);
 error_register_kbd:
 	free_irq(muen_input->irq, muen_input);
 error_request_irq:
-	input_free_device(muen_input->kbd);
+	if (muen_input->ptr)
+		input_free_device(muen_input->ptr);
+error_alloc_ptr:
+	if (muen_input->kbd)
+		input_free_device(muen_input->kbd);
 error_alloc_kbd:
 	platform_device_unregister(muen_input->pdev);
 error_register_pdev:
@@ -206,6 +242,7 @@ error_register_pdev:
 static void __exit muen_input_cleanup(void)
 {
 	free_irq(muen_input->irq, muen_input);
+	input_unregister_device(muen_input->ptr);
 	input_unregister_device(muen_input->kbd);
 	platform_device_unregister(muen_input->pdev);
 	iounmap(muen_input->channel);
