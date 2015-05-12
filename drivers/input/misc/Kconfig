@@ -676,17 +676,17 @@ config INPUT_SOC_BUTTON_ARRAY
 	  To compile this driver as a module, choose M here: the
 	  module will be called soc_button_array.
 
-config INPUT_MUEN_KBD
-	tristate "Muen virtual keyboard support"
+config INPUT_MUEN_DEV
+	tristate "Muen virtual input device support"
 	depends on MUEN_SINFO
+	depends on MUEN_CHANNEL
 	default n
-	select MUEN_CHANNEL
 	help
-	  This driver implements the Muen virtual keyboard device driver. It
+	  This driver implements the Muen virtual input device driver. It
 	  processes keyboard input via a shared memory channel.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called muen-kbd.
+	  module will be called muen-input.
 
 	  If unsure, say N.
 
