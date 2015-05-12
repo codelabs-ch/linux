@@ -29,14 +29,14 @@ void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol);
  * Read next element from given channel.
  */
 enum muchannel_reader_result muen_channel_read(
-		const struct muchannel *const channel,
+		const struct muchannel * const channel,
 		struct muchannel_reader *reader,
 		void *element);
 
 /*
  * Drain all current channel elements.
  */
-void muen_channel_drain(const struct muchannel *const channel,
+void muen_channel_drain(const struct muchannel * const channel,
 			struct muchannel_reader *reader);
 
 #endif /* MUEN_CHANNEL_READER_H */
