@@ -34,12 +34,11 @@ struct muen_dev {
 	struct platform_device *pdev;
 	struct input_dev *kbd;
 	int irq;
+	struct muchannel_reader reader;
+	struct muchannel *channel;
 };
 
 static struct muen_dev *muen_input;
-
-static struct muchannel *channel_in;
-static struct muchannel_reader reader;
 
 static char *input_channel_name = "virtual_input";
 module_param_named(channel, input_channel_name, charp, 0444);
@@ -51,7 +50,7 @@ static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 	struct muen_dev *input_dev = dev_id;
 	struct muen_key_info info;
 
-	while (muen_channel_read(channel_in, &reader, &info)
+	while (muen_channel_read(input_dev->channel, &input_dev->reader, &info)
 			== MUCHANNEL_SUCCESS) {
 		input_report_key(input_dev->kbd, info.keycode, info.pressed);
 		input_sync(input_dev->kbd);
@@ -82,18 +81,19 @@ static int __init muen_input_init(void)
 		return -EINVAL;
 	}
 
+	muen_input = kzalloc(sizeof(struct muen_dev), GFP_KERNEL);
+	if (!muen_input)
+		return -ENOMEM;
+
 	irq_number = channel.vector - IRQ0_VECTOR;
 	pr_info("muen-input: Using input channel '%s' at address 0x%llx, IRQ %d\n",
 		input_channel_name, channel.address, irq_number);
 
-	channel_in = (struct muchannel *)ioremap_cache(channel.address,
-			channel.size);
 	muen_input_res.start = irq_number;
 	muen_input_res.end   = irq_number;
 
-	muen_input = kzalloc(sizeof(struct muen_dev), GFP_KERNEL);
-	if (!muen_input)
-		return -ENOMEM;
+	muen_input->channel = (struct muchannel *)ioremap_cache(channel.address,
+			channel.size);
 
 	muen_input->pdev = platform_device_register_simple("muen-input", -1,
 							 &muen_input_res, 1);
@@ -139,7 +139,7 @@ static int __init muen_input_init(void)
 		goto error_register_kbd;
 	}
 
-	muen_channel_init_reader(&reader, 2);
+	muen_channel_init_reader(&muen_input->reader, 2);
 
 	return 0;
 
@@ -150,8 +150,8 @@ error_request_irq:
 error_alloc_kbd:
 	platform_device_unregister(muen_input->pdev);
 error_register_pdev:
+	iounmap(muen_input->channel);
 	kfree(muen_input);
-	iounmap(channel_in);
 	return error;
 }
 
@@ -160,8 +160,8 @@ static void __exit muen_input_cleanup(void)
 	free_irq(muen_input->irq, muen_input);
 	input_unregister_device(muen_input->kbd);
 	platform_device_unregister(muen_input->pdev);
+	iounmap(muen_input->channel);
 	kfree(muen_input);
-	iounmap(channel_in);
 }
 
 module_init(muen_input_init);
