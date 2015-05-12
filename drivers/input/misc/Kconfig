@@ -683,7 +683,7 @@ config INPUT_MUEN_DEV
 	default n
 	help
 	  This driver implements the Muen virtual input device driver. It
-	  processes keyboard input via a shared memory channel.
+	  processes keyboard and mouse input via a shared memory channel.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called muen-input.
