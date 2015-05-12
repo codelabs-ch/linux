@@ -41,6 +41,11 @@ static struct muen_dev *muen_input;
 static struct muchannel *channel_in;
 static struct muchannel_reader reader;
 
+static char *input_channel_name = "virtual_input";
+module_param_named(channel, input_channel_name, charp, 0444);
+MODULE_PARM_DESC(channel,
+"Name of memory region that provides input events (Default: virtual_input)");
+
 static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 {
 	struct muen_dev *input_dev = dev_id;
@@ -65,19 +70,21 @@ static int __init muen_input_init(void)
 	uint8_t irq_number;
 	int i, error;
 
-	if (!muen_get_channel_info("virtual_keyboard", &channel)) {
-		pr_err("muen-input: Unable to retrieve input channel\n");
+	if (!muen_get_channel_info(input_channel_name, &channel)) {
+		pr_err("muen-input: Unable to retrieve input channel '%s'\n",
+		       input_channel_name);
 		return -EINVAL;
 	}
 
 	if (!channel.has_vector) {
-		pr_err("muen-input: Unable to retrieve vector for input channel\n");
+		pr_err("muen-input: Unable to retrieve vector for input channel '%s'\n",
+		       input_channel_name);
 		return -EINVAL;
 	}
 
 	irq_number = channel.vector - IRQ0_VECTOR;
-	pr_info("muen-input: Using input channel at address 0x%llx, IRQ %d\n",
-		channel.address, irq_number);
+	pr_info("muen-input: Using input channel '%s' at address 0x%llx, IRQ %d\n",
+		input_channel_name, channel.address, irq_number);
 
 	channel_in = (struct muchannel *)ioremap_cache(channel.address,
 			channel.size);
