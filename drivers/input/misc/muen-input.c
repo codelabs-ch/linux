@@ -71,58 +71,59 @@ module_param_named(channel, input_channel_name, charp, 0444);
 MODULE_PARM_DESC(channel,
 "Name of memory region that provides input events (Default: virtual_input)");
 
+static void process_input(struct muen_dev *input_dev,
+			  struct muen_input_event info)
+{
+	struct input_dev *dev = NULL;
+	bool key_press = false;
+
+	switch (info.event_type) {
+	case MUEN_EV_RESET:
+		/* XXX: ignored */
+		break;
+	case MUEN_EV_MOTION:
+		if (info.rel_x != 0)
+			input_report_rel(input_dev->ptr, REL_X, info.rel_x);
+		if (info.rel_y != 0)
+			input_report_rel(input_dev->ptr, REL_Y, info.rel_y);
+		input_sync(input_dev->ptr);
+		break;
+	case MUEN_EV_WHEEL:
+		if (info.rel_x != 0)
+			input_report_rel(input_dev->ptr, REL_HWHEEL,
+					 info.rel_x);
+		if (info.rel_y != 0)
+			input_report_rel(input_dev->ptr, REL_WHEEL,
+					 info.rel_y);
+			input_sync(input_dev->ptr);
+		break;
+	case MUEN_EV_PRESS:
+		key_press = true;
+	case MUEN_EV_RELEASE:
+		if (info.keycode < BTN_LEFT)
+			dev = input_dev->kbd;
+		if (info.keycode >= BTN_LEFT)
+			dev = input_dev->ptr;
+		if (dev) {
+			input_report_key(dev, info.keycode, key_press);
+			input_sync(dev);
+		} else
+			pr_warn("muen-input: Unhandled keycode 0x%x\n",
+				info.keycode);
+		break;
+	default:
+		pr_warn("muen-input: Unknown event type %d\n", info.event_type);
+	}
+}
+
 static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 {
 	struct muen_dev *input_dev = dev_id;
 	struct muen_input_event info;
-	struct input_dev *dev;
-	bool key_press;
 
 	while (muen_channel_read(input_dev->channel, &input_dev->reader, &info)
 			== MUCHANNEL_SUCCESS) {
-		dev = NULL;
-		key_press = false;
-
-		switch (info.event_type) {
-		case MUEN_EV_RESET:
-			/* XXX: ignored */
-			break;
-		case MUEN_EV_MOTION:
-			if (info.rel_x != 0)
-				input_report_rel(input_dev->ptr, REL_X,
-					info.rel_x);
-			if (info.rel_y != 0)
-				input_report_rel(input_dev->ptr, REL_Y,
-					info.rel_y);
-			input_sync(input_dev->ptr);
-			break;
-		case MUEN_EV_WHEEL:
-			if (info.rel_x != 0)
-				input_report_rel(input_dev->ptr, REL_HWHEEL,
-					info.rel_x);
-			if (info.rel_y != 0)
-				input_report_rel(input_dev->ptr, REL_WHEEL,
-					info.rel_y);
-			input_sync(input_dev->ptr);
-			break;
-		case MUEN_EV_PRESS:
-			key_press = true;
-		case MUEN_EV_RELEASE:
-			if (info.keycode < BTN_LEFT)
-				dev = input_dev->kbd;
-			if (info.keycode >= BTN_LEFT)
-				dev = input_dev->ptr;
-			if (dev) {
-				input_report_key(dev, info.keycode, key_press);
-				input_sync(dev);
-			} else
-				pr_warn("muen-input: unhandled keycode 0x%x\n",
-					info.keycode);
-			break;
-		default:
-			pr_warn("muen-input: unknown event type %d\n",
-				info.event_type);
-		}
+		process_input(input_dev, info);
 	}
 
 	return IRQ_HANDLED;
