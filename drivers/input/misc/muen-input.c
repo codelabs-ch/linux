@@ -120,10 +120,31 @@ static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 {
 	struct muen_dev *input_dev = dev_id;
 	struct muen_input_event info;
+	enum muchannel_reader_result res;
+	bool pending_data = true;
 
-	while (muen_channel_read(input_dev->channel, &input_dev->reader, &info)
-			== MUCHANNEL_SUCCESS) {
-		process_input(input_dev, info);
+	while (pending_data) {
+		res = muen_channel_read(input_dev->channel, &input_dev->reader,
+					&info);
+		switch (res) {
+		case MUCHANNEL_SUCCESS:
+			process_input(input_dev, info);
+			break;
+		case MUCHANNEL_EPOCH_CHANGED:
+			pr_debug("muen-input: Channel epoch changed\n");
+			break;
+		case MUCHANNEL_OVERRUN_DETECTED:
+			pr_warn("muen-input: Channel overrun\n");
+			break;
+		case MUCHANNEL_INCOMPATIBLE_INTERFACE:
+			pr_err("muen-input: Incompatible channel interface\n");
+			/* fall through */
+		case MUCHANNEL_NO_DATA:
+		case MUCHANNEL_INACTIVE:
+		default:
+			pending_data = false;
+			break;
+		}
 	}
 
 	return IRQ_HANDLED;
