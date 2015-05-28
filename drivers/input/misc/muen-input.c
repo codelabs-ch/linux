@@ -91,14 +91,18 @@ static int __init muen_input_init(void)
 	muen_input->pdev = platform_device_register_simple("muen-input", -1,
 							 &muen_input_res, 1);
 	if (IS_ERR(muen_input->pdev)) {
-		pr_err("muen-input: Unable to allocate platform device");
-		return -ENODEV;
+		pr_err("muen-input: Unable to allocate platform device\n");
+		error = -ENODEV;
+		goto error_register_pdev;
 	}
 
 	muen_input->irq = irq_number;
 	muen_input->kbd = input_allocate_device();
-	if (!muen_input->kbd)
-		return -ENOMEM;
+	if (!muen_input->kbd) {
+		pr_err("muen-input: Unable to allocate keyboard input device\n");
+		error = -ENOMEM;
+		goto error_alloc_kbd;
+	}
 
 	muen_input->kbd->name = "Muen Virtual Keyboard";
 	muen_input->kbd->phys = "muen-input/input0";
@@ -116,25 +120,37 @@ static int __init muen_input_init(void)
 
 	error = request_irq(muen_input->irq, handle_muen_input_int, 0,
 			    "muen-input", muen_input);
-	if (error)
-		return error;
-
-	muen_channel_init_reader(&reader, 2);
+	if (error) {
+		pr_err("muen-input: Unable to request IRQ %d\n",
+		       muen_input->irq);
+		goto error_request_irq;
+	}
 
 	error = input_register_device(muen_input->kbd);
 	if (error) {
-		pr_err("muen-input: Unable to register keyboard as input device");
-		input_free_device(muen_input->kbd);
-		platform_device_unregister(muen_input->pdev);
-		kfree(muen_input);
-		return error;
+		pr_err("muen-input: Unable to register keyboard as input device\n");
+		goto error_register_kbd;
 	}
 
+	muen_channel_init_reader(&reader, 2);
+
 	return 0;
+
+error_register_kbd:
+	free_irq(muen_input->irq, muen_input);
+error_request_irq:
+	input_free_device(muen_input->kbd);
+error_alloc_kbd:
+	platform_device_unregister(muen_input->pdev);
+error_register_pdev:
+	kfree(muen_input);
+	iounmap(channel_in);
+	return error;
 }
 
 static void __exit muen_input_cleanup(void)
 {
+	free_irq(muen_input->irq, muen_input);
 	input_unregister_device(muen_input->kbd);
 	platform_device_unregister(muen_input->pdev);
 	kfree(muen_input);
