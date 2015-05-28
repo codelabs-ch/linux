@@ -26,11 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm/io.h>
-
+#include <linux/io.h>
 #include <linux/init.h>
-#include <linux/types.h>
-#include <linux/printk.h>
 #include <linux/module.h>
 #include <muen/sinfo.h>
 
@@ -44,20 +41,21 @@ static int __init setup_sinfo_addr(char *arg)
 
 	return 0;
 }
+
 early_param("muen_sinfo", setup_sinfo_addr);
 
-static const struct subject_info_type * sinfo;
+static const struct subject_info_type *sinfo;
 
 static bool log_channel(const struct muen_channel_info * const channel,
-		void *data)
+			void *data)
 {
 	if (channel->has_event || channel->has_vector) {
 		pr_info("muen-sinfo: [%s with %s %03d] %s\n",
-				channel->writable ? "writer" : "reader",
-				channel->has_event ? "event " : "vector",
-				channel->has_event ?
-					channel->event_number : channel->vector,
-				channel->name);
+			channel->writable ? "writer" : "reader",
+			channel->has_event ? "event " : "vector",
+			channel->has_event ?
+				channel->event_number : channel->vector,
+			channel->name);
 	} else {
 		pr_info("muen-sinfo: [%s with no %s ] %s\n",
 			channel->writable ? "writer" : "reader",
@@ -69,12 +67,12 @@ static bool log_channel(const struct muen_channel_info * const channel,
 }
 
 static bool log_memregion(const struct muen_memregion_info * const region,
-		void *data)
+			  void *data)
 {
 	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s%s] %s\n",
-			region->address, region->size,
-			region->writable ? "rw" : "ro",
-			region->executable ? "x" : "-", region->name);
+		region->address, region->size,
+		region->writable ? "rw" : "ro",
+		region->executable ? "x" : "-", region->name);
 
 	return true;
 }
@@ -122,7 +120,8 @@ static bool is_memregion(const struct resource_type * const resource)
 
 static bool is_channel(const struct resource_type * const resource)
 {
-	return is_memregion(resource) && resource->channel_info_idx != NO_RESOURCE;
+	return is_memregion(resource) &&
+	       resource->channel_info_idx != NO_RESOURCE;
 }
 
 bool muen_check_magic(void)
@@ -132,7 +131,7 @@ bool muen_check_magic(void)
 EXPORT_SYMBOL(muen_check_magic);
 
 bool muen_get_channel_info(const char * const name,
-		struct muen_channel_info *channel)
+			   struct muen_channel_info *channel)
 {
 	int i;
 
@@ -141,8 +140,8 @@ bool muen_get_channel_info(const char * const name,
 
 	for (i = 0; i < sinfo->resource_count; i++) {
 		if (is_channel(&sinfo->resources[i]) &&
-			strncmp(sinfo->resources[i].name.data, name,
-					sinfo->resources[i].name.length) == 0) {
+		    strncmp(sinfo->resources[i].name.data, name,
+			    sinfo->resources[i].name.length) == 0) {
 			fill_channel_data(i, channel);
 			return true;
 		}
@@ -152,7 +151,7 @@ bool muen_get_channel_info(const char * const name,
 EXPORT_SYMBOL(muen_get_channel_info);
 
 bool muen_get_memregion_info(const char * const name,
-		struct muen_memregion_info *memregion)
+			     struct muen_memregion_info *memregion)
 {
 	int i;
 
@@ -161,8 +160,8 @@ bool muen_get_memregion_info(const char * const name,
 
 	for (i = 0; i < sinfo->resource_count; i++) {
 		if (is_memregion(&sinfo->resources[i]) &&
-			strncmp(sinfo->resources[i].name.data, name,
-					sinfo->resources[i].name.length) == 0) {
+		    strncmp(sinfo->resources[i].name.data, name,
+			    sinfo->resources[i].name.length) == 0) {
 			fill_memregion_data(i, memregion);
 			return true;
 		}
@@ -235,11 +234,11 @@ static int __init muen_sinfo_init(void)
 
 	pr_info("muen-sinfo: Subject information @ 0x%016llx\n", sinfo_addr);
 	pr_info("muen-sinfo: Subject information exports %d memory region(s)\n",
-			sinfo->memregion_count);
+		sinfo->memregion_count);
 	muen_for_each_memregion(log_memregion, NULL);
 
 	pr_info("muen-sinfo: Subject information exports %d channel(s)\n",
-			sinfo->channel_info_count);
+		sinfo->channel_info_count);
 	muen_for_each_channel(log_channel, NULL);
 
 	return 0;
