@@ -184,10 +184,10 @@ static int __init muen_input_init(void)
 	muen_input_res.end   = irq_number;
 
 	muen_input->channel = (struct muchannel *)ioremap_cache(channel.address,
-			channel.size);
+								channel.size);
 
 	muen_input->pdev = platform_device_register_simple("muen-input", -1,
-							 &muen_input_res, 1);
+							   &muen_input_res, 1);
 	if (IS_ERR(muen_input->pdev)) {
 		pr_err("muen-input: Unable to allocate platform device\n");
 		error = -ENODEV;
