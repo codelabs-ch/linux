@@ -32,119 +32,119 @@ struct muen_key_info {
 
 struct muen_dev {
 	struct platform_device *pdev;
-	struct input_dev *dev;
+	struct input_dev *kbd;
 	int irq;
 };
 
-static struct muen_dev *muen_kbd;
+static struct muen_dev *muen_input;
 
 static struct muchannel *channel_in;
 static struct muchannel_reader reader;
 
-static irqreturn_t handle_muen_kbd_int(int rq, void *dev_id)
+static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 {
-	struct muen_dev *kbd = dev_id;
+	struct muen_dev *input_dev = dev_id;
 	struct muen_key_info info;
 
 	while (muen_channel_read(channel_in, &reader, &info)
 			== MUCHANNEL_SUCCESS) {
-		input_report_key(kbd->dev, info.keycode, info.pressed);
-		input_sync(kbd->dev);
+		input_report_key(input_dev->kbd, info.keycode, info.pressed);
+		input_sync(input_dev->kbd);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static struct resource muen_kbd_res = {
+static struct resource muen_input_res = {
 	.flags = IORESOURCE_IRQ,
 };
 
-static int __init muen_kbd_init(void)
+static int __init muen_input_init(void)
 {
 	struct muen_channel_info channel;
 	uint8_t irq_number;
 	int i, error;
 
 	if (!muen_get_channel_info("virtual_keyboard", &channel)) {
-		pr_err("muen-kbd: Unable to retrieve keyboard channel\n");
+		pr_err("muen-input: Unable to retrieve input channel\n");
 		return -EINVAL;
 	}
 
 	if (!channel.has_vector) {
-		pr_err("muen-kbd: Unable to retrieve vector for keyboard channel\n");
+		pr_err("muen-input: Unable to retrieve vector for input channel\n");
 		return -EINVAL;
 	}
 
 	irq_number = channel.vector - IRQ0_VECTOR;
-	pr_info("muen-kbd: Using keyboard channel at address 0x%llx, IRQ %d\n",
-			channel.address, irq_number);
+	pr_info("muen-input: Using input channel at address 0x%llx, IRQ %d\n",
+		channel.address, irq_number);
 
 	channel_in = (struct muchannel *)ioremap_cache(channel.address,
 			channel.size);
-	muen_kbd_res.start = irq_number;
-	muen_kbd_res.end   = irq_number;
+	muen_input_res.start = irq_number;
+	muen_input_res.end   = irq_number;
 
-	muen_kbd = kzalloc(sizeof(struct muen_dev), GFP_KERNEL);
-	if (!muen_kbd)
+	muen_input = kzalloc(sizeof(struct muen_dev), GFP_KERNEL);
+	if (!muen_input)
 		return -ENOMEM;
 
-	muen_kbd->pdev = platform_device_register_simple("muen-kbd", -1,
-							 &muen_kbd_res, 1);
-	if (IS_ERR(muen_kbd->pdev)) {
-		pr_err("muen-kbd: Unable to allocate platform device");
+	muen_input->pdev = platform_device_register_simple("muen-input", -1,
+							 &muen_input_res, 1);
+	if (IS_ERR(muen_input->pdev)) {
+		pr_err("muen-input: Unable to allocate platform device");
 		return -ENODEV;
 	}
 
-	muen_kbd->irq = irq_number;
-	muen_kbd->dev = input_allocate_device();
-	if (!muen_kbd->dev)
+	muen_input->irq = irq_number;
+	muen_input->kbd = input_allocate_device();
+	if (!muen_input->kbd)
 		return -ENOMEM;
 
-	muen_kbd->dev->name = "Muen Virtual Keyboard";
-	muen_kbd->dev->phys = "muen-kbd/input0";
-	muen_kbd->dev->id.bustype = BUS_HOST;
-	muen_kbd->dev->id.vendor = 0x0001;
-	muen_kbd->dev->id.product = 0x0001;
-	muen_kbd->dev->id.version = 0x0001;
+	muen_input->kbd->name = "Muen Virtual Keyboard";
+	muen_input->kbd->phys = "muen-input/input0";
+	muen_input->kbd->id.bustype = BUS_HOST;
+	muen_input->kbd->id.vendor = 0x0001;
+	muen_input->kbd->id.product = 0x0001;
+	muen_input->kbd->id.version = 0x0001;
 
-	muen_kbd->dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+	muen_input->kbd->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 
 	for (i = KEY_ESC; i < KEY_UNKNOWN; i++)
-		__set_bit(i, muen_kbd->dev->keybit);
+		__set_bit(i, muen_input->kbd->keybit);
 	for (i = KEY_OK; i < KEY_MAX; i++)
-		__set_bit(i, muen_kbd->dev->keybit);
+		__set_bit(i, muen_input->kbd->keybit);
 
-	error = request_irq(muen_kbd->irq, handle_muen_kbd_int, 0, "muen-kbd",
-			    muen_kbd);
+	error = request_irq(muen_input->irq, handle_muen_input_int, 0,
+			    "muen-input", muen_input);
 	if (error)
 		return error;
 
 	muen_channel_init_reader(&reader, 2);
 
-	error = input_register_device(muen_kbd->dev);
+	error = input_register_device(muen_input->kbd);
 	if (error) {
-		pr_err("muen-kbd: Unable to register input device");
-		input_free_device(muen_kbd->dev);
-		platform_device_unregister(muen_kbd->pdev);
-		kfree(muen_kbd);
+		pr_err("muen-input: Unable to register keyboard as input device");
+		input_free_device(muen_input->kbd);
+		platform_device_unregister(muen_input->pdev);
+		kfree(muen_input);
 		return error;
 	}
 
 	return 0;
 }
 
-static void __exit muen_kbd_cleanup(void)
+static void __exit muen_input_cleanup(void)
 {
-	input_unregister_device(muen_kbd->dev);
-	platform_device_unregister(muen_kbd->pdev);
-	kfree(muen_kbd);
+	input_unregister_device(muen_input->kbd);
+	platform_device_unregister(muen_input->pdev);
+	kfree(muen_input);
 	iounmap(channel_in);
 }
 
-module_init(muen_kbd_init);
-module_exit(muen_kbd_cleanup);
+module_init(muen_input_init);
+module_exit(muen_input_cleanup);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
-MODULE_DESCRIPTION("Muen virtual keyboard device");
+MODULE_DESCRIPTION("Muen virtual input device");
 MODULE_LICENSE("GPL");
