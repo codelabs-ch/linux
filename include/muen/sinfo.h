@@ -52,7 +52,7 @@ bool muen_check_magic(void);
  * struct members.
  */
 bool muen_get_channel_info(const char * const name,
-		struct muen_channel_info *channel);
+			   struct muen_channel_info *channel);
 
 /*
  * Return information for a memory region given by name.
@@ -60,7 +60,7 @@ bool muen_get_channel_info(const char * const name,
  * If no memory region with given name exists, False is returned.
  */
 bool muen_get_memregion_info(const char * const name,
-		struct muen_memregion_info *memregion);
+			     struct muen_memregion_info *memregion);
 
 /*
  * Channel callback.
