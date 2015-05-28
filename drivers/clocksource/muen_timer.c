@@ -14,13 +14,8 @@
  */
 
 #include <asm/time.h>
-#include <asm/i8259.h>
 
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/cpumask.h>
-#include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <muen/sinfo.h>
 
@@ -29,7 +24,7 @@ struct subject_timer_type {
 	uint8_t vector;
 } __packed;
 
-static struct subject_timer_type * timer_page;
+static struct subject_timer_type *timer_page;
 
 static void muen_timer_set_mode(const enum clock_event_mode mode,
 				struct clock_event_device *const evt)
@@ -56,8 +51,8 @@ static int muen_timer_next_event(const unsigned long delta,
 				 struct clock_event_device *const evt)
 {
 	uint64_t tsc_now;
-	rdtscll(tsc_now);
 
+	rdtscll(tsc_now);
 	timer_page->value = tsc_now + delta;
 	return 0;
 }
@@ -78,17 +73,18 @@ static int __init clockevent_muen_timer_init(void)
 		pr_warn("Unable to retrieve Muen time memory region\n");
 		return -1;
 	}
-	pr_info("Using Muen time memory region at address 0x%llx\n", region.address);
+	pr_info("Using Muen time memory region at address 0x%llx\n",
+		region.address);
 
-	timer_page = (struct subject_timer_type *) ioremap_cache(region.address,
-			region.size);
+	timer_page = (struct subject_timer_type *)ioremap_cache(region.address,
+								region.size);
 
 	timer_page->vector = IRQ0_VECTOR;
 
-	printk(KERN_INFO "Registering clockevent device muen-timer\n");
+	pr_info("Registering clockevent device muen-timer\n");
 	muen_timer_clockevent.cpumask = cpu_online_mask;
 	clockevents_config_and_register(&muen_timer_clockevent,
-			muen_get_tsc_khz() * 1000, 1, UINT_MAX);
+					muen_get_tsc_khz() * 1000, 1, UINT_MAX);
 	global_clock_event = &muen_timer_clockevent;
 	return 0;
 }
