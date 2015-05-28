@@ -21,7 +21,8 @@
 #include <linux/pci.h>
 
 #include <asm/msidef.h>
-#include <asm/x86_init.h>
+
+#include <muen/pci.h>
 
 static void noop(struct irq_data *data) { }
 
@@ -65,7 +66,7 @@ static int acpi_get_prt_msi_handle(struct pci_dev *dev)
 	entry = buffer.pointer;
 	while (entry && (entry->length > 0)) {
 		if (((entry->address >> 16) & 0xffff) == device_addr &&
-			entry->pin > 3) {
+		    entry->pin > 3) {
 			/* Handle is encoded in the _PRT entry's pin field */
 			msi_handle = entry->pin;
 			break;
@@ -79,11 +80,12 @@ static int acpi_get_prt_msi_handle(struct pci_dev *dev)
 }
 
 static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
-		unsigned int dest, struct msi_msg *msg, u8 hpet_id)
+				 unsigned int dest, struct msi_msg *msg,
+				 u8 hpet_id)
 {
 	int handle, subhandle;
-	handle = acpi_get_prt_msi_handle(pdev);
 
+	handle = acpi_get_prt_msi_handle(pdev);
 	BUG_ON(handle < 0);
 
 	/* Set subhandle to offset from base IRQ */
@@ -98,12 +100,12 @@ static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 
 	msg->data = subhandle;
 
-	dev_info(&pdev->dev, "programming MSI address 0x%x with IRTE handle %d/%d\n",
-			msg->address_lo, handle, subhandle);
+	dev_info(&pdev->dev, "Programming MSI address 0x%x with IRTE handle %d/%d\n",
+		 msg->address_lo, handle, subhandle);
 }
 
 static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-		unsigned int irq_base, unsigned int irq_offset)
+			      unsigned int irq_base, unsigned int irq_offset)
 {
 	unsigned int const irq = irq_base + irq_offset;
 	struct msi_msg msg;
@@ -130,8 +132,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
-	unsigned int irq = dev->irq;
-	int node, ret;
+	int node, ret, irq = dev->irq;
 
 	/* Multiple vectors only supported for MSI-X */
 	if (nvec > 1 && type == PCI_CAP_ID_MSI) {
@@ -141,7 +142,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	ret = acpi_get_prt_msi_handle(dev);
 	if (ret < 0) {
-		dev_info(&dev->dev, "no MSI handle configured\n");
+		dev_info(&dev->dev, "No MSI handle configured\n");
 		return -EINVAL;
 	}
 
@@ -165,7 +166,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		if (ret < 0)
 			goto error;
 
-		dev_info(&dev->dev, "irq %d for MSI%s\n", irq,
+		dev_info(&dev->dev, "IRQ %d for MSI%s\n", irq,
 			 type == PCI_CAP_ID_MSIX ? "-X" : "");
 		irq++;
 	}
