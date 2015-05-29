@@ -13,12 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/console.h>
-#include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
+#include <linux/module.h>
 #include <linux/kvm_para.h>
 #include <muen/sinfo.h>
 #include <muen/writer.h>
@@ -99,7 +94,7 @@ static int __init hvc_muen_console_init(void)
 	event_number = channel.event_number;
 	channel_size = channel.size;
 	pr_info("hvc_muen: Using console channel at address 0x%llx with size 0x%llx, event %d\n",
-			channel.address, channel_size, event_number);
+		channel.address, channel_size, event_number);
 
 	channel_out = (struct muchannel *)__va(channel.address);
 
@@ -110,3 +105,8 @@ static int __init hvc_muen_console_init(void)
 }
 
 console_initcall(hvc_muen_console_init);
+
+MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
+MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
+MODULE_DESCRIPTION("Muen hypervisor console driver");
+MODULE_LICENSE("GPL");
