@@ -16,8 +16,8 @@
  */
 
 #include <linux/irq.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/i8259.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
@@ -39,12 +39,12 @@ static void muen_set_cpu_features(struct cpuinfo_x86 *c)
 static void __init muen_init_IRQ(void)
 {
 	int i;
+
 	native_init_IRQ();
 
 	/* Create vector mapping for all IRQs */
-	for (i = IRQ0_VECTOR; i < NR_VECTORS; i++) {
+	for (i = IRQ0_VECTOR; i < NR_VECTORS; i++)
 		__this_cpu_write(vector_irq[i], i - IRQ0_VECTOR);
-	}
 }
 
 static void __init muen_platform_setup(void)
