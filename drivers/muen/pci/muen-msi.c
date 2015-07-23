@@ -32,8 +32,8 @@ static void noop(struct irq_data *data) { }
 static struct irq_chip msi_chip = {
 	.name        = "Muen-MSI",
 	.irq_ack     = noop,
-	.irq_mask    = mask_msi_irq,
-	.irq_unmask  = unmask_msi_irq,
+	.irq_mask    = pci_msi_mask_irq,
+	.irq_unmask  = pci_msi_unmask_irq,
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 

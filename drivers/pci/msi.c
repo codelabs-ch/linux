@@ -272,6 +272,7 @@ static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 {
 	struct msi_desc *desc = irq_data_get_msi(data);
 
+	pr_warn("msi_set_mask_bit: %u -> %u", desc->irq, flag);
 	if (desc->msi_attrib.is_msix) {
 		msix_mask_irq(desc, flag);
 		readl(desc->mask_base);		/* Flush write to device */
@@ -341,7 +342,9 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
 	if (entry->dev->current_state != PCI_D0) {
 		/* Don't touch the hardware now */
+		pr_warn("Not touching hardware now\n");
 	} else if (entry->msi_attrib.is_msix) {
+		pr_warn("__pci_write_msi_msg: MSI-x %x\n", msg->address_lo);
 		void __iomem *base;
 		base = entry->mask_base +
 			entry->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
@@ -350,6 +353,7 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 		writel(msg->address_hi, base + PCI_MSIX_ENTRY_UPPER_ADDR);
 		writel(msg->data, base + PCI_MSIX_ENTRY_DATA);
 	} else {
+		pr_warn("__pci_write_msi_msg: MSI %x\n", msg->address_lo);
 		struct pci_dev *dev = entry->dev;
 		int pos = dev->msi_cap;
 		u16 msgctl;
@@ -1355,6 +1359,7 @@ struct irq_domain *pci_msi_create_default_irq_domain(struct device_node *node,
 		pr_err("PCI: default irq domain for PCI MSI has already been created.\n");
 		domain = NULL;
 	} else {
+		pr_err("PCI: default irq domain created.\n");
 		domain = pci_msi_create_irq_domain(node, info, parent);
 		pci_msi_default_domain = domain;
 	}
