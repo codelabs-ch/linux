@@ -298,10 +298,12 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	u32 mac_reg, fwsm = er32(FWSM);
 	s32 ret_val;
 
+	pr_warn("e1000_gat_hw_pyh_config_ich8lan start\n");
 	/* Gate automatic PHY configuration by hardware on managed and
 	 * non-managed 82579 and newer adapters.
 	 */
 	e1000_gate_hw_phy_config_ich8lan(hw, true);
+	pr_warn("e1000_gat_hw_pyh_config_ich8lan done\n");
 
 	/* It is not possible to be certain of the current state of ULP
 	 * so forcibly disable it.
@@ -309,6 +311,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_unknown;
 	e1000_disable_ulp_lpt_lp(hw, true);
 
+	pr_warn("e1000_disable_ulp_lpt_lp done\n");
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
 		e_dbg("Failed to initialize PHY flow\n");
@@ -377,20 +380,24 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		break;
 	}
 
+	pr_warn("ops.release start\n");
 	hw->phy.ops.release(hw);
+	pr_warn("ops.release done\n");
 	if (!ret_val) {
-
+		pr_warn("ops.check_reset_block start\n");
 		/* Check to see if able to reset PHY.  Print error if not */
 		if (hw->phy.ops.check_reset_block(hw)) {
 			e_err("Reset blocked by ME\n");
 			goto out;
 		}
+		pr_warn("ops.check_reset_block done\n");
 
 		/* Reset the PHY before any access to it.  Doing so, ensures
 		 * that the PHY is in a known good state before we read/write
 		 * PHY registers.  The generic reset is sufficient here,
 		 * because we haven't determined the PHY type yet.
 		 */
+		pr_warn("e1000e_phy_hw_reset_generic start\n");
 		ret_val = e1000e_phy_hw_reset_generic(hw);
 		if (ret_val)
 			goto out;
@@ -401,19 +408,24 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		 * return E1000E_BLK_PHY_RESET, as this is the condition that
 		 *  the PHY is in.
 		 */
+		pr_warn("ops.check_reset_block start\n");
 		ret_val = hw->phy.ops.check_reset_block(hw);
 		if (ret_val)
 			e_err("ME blocked access to PHY after reset\n");
 	}
 
+	pr_warn("out start\n");
 out:
 	/* Ungate automatic PHY configuration on non-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
+		pr_warn("usleep_range start\n");
 		usleep_range(10000, 20000);
+		pr_warn("e1000_gate_hw_phy_config_ich8lan start\n");
 		e1000_gate_hw_phy_config_ich8lan(hw, false);
 	}
 
+	pr_warn("done here\n");
 	return ret_val;
 }
 
@@ -428,6 +440,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 
+	pr_warn("e1000_init_phy_params_pchlan\n");
 	phy->addr = 1;
 	phy->reset_delay_us = 100;
 
@@ -446,7 +459,9 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 
 	phy->id = e1000_phy_unknown;
 
+	pr_warn("e1000_init_phy_workarounds_pchlan start\n");
 	ret_val = e1000_init_phy_workarounds_pchlan(hw);
+	pr_warn("e1000_init_phy_workarounds_pchlan done\n");
 	if (ret_val)
 		return ret_val;
 
@@ -464,15 +479,20 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 			/* In case the PHY needs to be in mdio slow mode,
 			 * set slow mode and try to get the PHY id again.
 			 */
+			pr_warn("e1000_set_mdio_slow_mode_hv\n");
 			ret_val = e1000_set_mdio_slow_mode_hv(hw);
+			pr_warn("e1000_set_mdio_slow_mode_hv done\n");
 			if (ret_val)
 				return ret_val;
+			pr_warn("e1000e_get_phy_id\n");
 			ret_val = e1000e_get_phy_id(hw);
 			if (ret_val)
 				return ret_val;
 			break;
 		}
+	pr_err("e1000e_get_phy_type_from_id\n");
 	phy->type = e1000e_get_phy_type_from_id(phy->id);
+	pr_err("e1000e_get_phy_type_from_id done\n");
 
 	switch (phy->type) {
 	case e1000_phy_82577:
@@ -496,6 +516,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		break;
 	}
 
+	pr_err("donenix\n");
 	return ret_val;
 }
 
@@ -1470,6 +1491,7 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	if (rc)
 		return rc;
 
+	pr_err("e1000_init_nvm_params_ich8lan\n");
 	switch (hw->mac.type) {
 	case e1000_ich8lan:
 	case e1000_ich9lan:
@@ -1479,14 +1501,19 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	case e1000_pchlan:
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
+		pr_err("e1000_init_phy_params_pchlan start\n");
 		rc = e1000_init_phy_params_pchlan(hw);
+		pr_err("e1000_init_phy_params_pchlan\n");
 		break;
 	default:
 		break;
 	}
-	if (rc)
+	if (rc) {
+		pr_err("donesor\n");
 		return rc;
+	}
 
+	pr_warn("not yet\n");
 	/* Disable Jumbo Frame support on parts with Intel 10/100 PHY or
 	 * on parts with MACsec enabled in NVM (reflected in CTRL_EXT).
 	 */
@@ -1497,6 +1524,7 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 		adapter->max_hw_frame_size = ETH_FRAME_LEN + ETH_FCS_LEN;
 
 		hw->mac.ops.blink_led = NULL;
+		pr_warn("jumbo frame support disabled\n");
 	}
 
 	if ((adapter->hw.mac.type == e1000_ich8lan) &&
@@ -1508,6 +1536,7 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	    (er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
 		adapter->flags2 |= FLAG2_PCIM2PCI_ARBITER_WA;
 
+	pr_warn("e1000_get_variants done\n");
 	return 0;
 }
 
@@ -1847,10 +1876,15 @@ static s32 e1000_check_reset_block_ich8lan(struct e1000_hw *hw)
 {
 	bool blocked = false;
 	int i = 0;
-
+	pr_err("e1000_check_reset_block_ich8lan entry");
 	while ((blocked = !(er32(FWSM) & E1000_ICH_FWSM_RSPCIPHY)) &&
-	       (i++ < 10))
+	       (i++ < 10)) {
+		pr_err("while loop");
 		usleep_range(10000, 20000);
+		pr_err("usleep_range");
+	}
+
+	pr_err("e1000_check_reset_block_ich8lan exit");
 	return blocked ? E1000_BLK_PHY_RESET : 0;
 }
 

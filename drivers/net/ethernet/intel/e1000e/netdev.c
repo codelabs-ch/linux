@@ -2196,8 +2196,11 @@ static int e1000_request_irq(struct e1000_adapter *adapter)
 		adapter->int_mode = E1000E_INT_MODE_LEGACY;
 	}
 
+	e_err("Requesting IRQ %d\n", adapter->pdev->irq);
 	err = request_irq(adapter->pdev->irq, e1000_intr, IRQF_SHARED,
 			  netdev->name, netdev);
+	e_err("Requested IRQ %d\n", adapter->pdev->irq);
+
 	if (err)
 		e_err("Unable to allocate interrupt, Error: %d\n", err);
 
@@ -4182,6 +4185,7 @@ static int e1000_sw_init(struct e1000_adapter *adapter)
 	spin_lock_init(&adapter->stats64_lock);
 
 	e1000e_set_interrupt_capability(adapter);
+	e_err("e1000e_set_interrupt_capability IRQ %d\n", adapter->pdev->irq);
 
 	if (e1000_alloc_queues(adapter))
 		return -ENOMEM;
@@ -6835,6 +6839,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* setup adapter struct */
 	err = e1000_sw_init(adapter);
+	e_err("e1000_sw_init done");
 	if (err)
 		goto err_sw_init;
 
@@ -6842,15 +6847,22 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(&hw->nvm.ops, ei->nvm_ops, sizeof(hw->nvm.ops));
 	memcpy(&hw->phy.ops, ei->phy_ops, sizeof(hw->phy.ops));
 
+	e_err("get_variants");
 	err = ei->get_variants(adapter);
-	if (err)
+	if (err) {
+		e_err("error get_variants");
 		goto err_hw_init;
+	}
 
 	if ((adapter->flags & FLAG_IS_ICH) &&
-	    (adapter->flags & FLAG_READ_ONLY_NVM))
+	    (adapter->flags & FLAG_READ_ONLY_NVM)) {
+		e_err("e1000e_write_protect_nvm_ich8lan");
 		e1000e_write_protect_nvm_ich8lan(&adapter->hw);
+	}
 
+	e_err("get_bus_info start");
 	hw->mac.ops.get_bus_info(&adapter->hw);
+	e_err("get_bus_info done");
 
 	adapter->hw.phy.autoneg_wait_to_complete = 0;
 
@@ -6861,6 +6873,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->hw.phy.ms_type = e1000_ms_hw_default;
 	}
 
+	e_err("SOL/IDER check");
 	if (hw->phy.ops.check_reset_block && hw->phy.ops.check_reset_block(hw))
 		dev_info(&pdev->dev,
 			 "PHY reset is blocked due to SOL/IDER session.\n");
@@ -6896,14 +6909,16 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
+	e_err("e1000e_enable_mng_pass_thru");
 	if (e1000e_enable_mng_pass_thru(&adapter->hw))
 		adapter->flags |= FLAG_MNG_PT_ENABLED;
 
+	e_err("reset_hw start");
 	/* before reading the NVM, reset the controller to
 	 * put the device in a known good starting state
 	 */
 	adapter->hw.mac.ops.reset_hw(&adapter->hw);
-
+	e_err("reset_hw done");
 	/* systems with ASPM and others may see the checksum fail on the first
 	 * attempt. Let's give it a few tries
 	 */
@@ -6918,7 +6933,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	e1000_eeprom_checks(adapter);
-
+	e_err("e1000_eeprom_checks done");
 	/* copy the MAC address */
 	if (e1000e_read_mac_addr(&adapter->hw))
 		dev_err(&pdev->dev,
@@ -6941,6 +6956,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->phy_info_timer.function = e1000_update_phy_info;
 	adapter->phy_info_timer.data = (unsigned long)adapter;
 
+	e_err("e1000 timers inited");
 	INIT_WORK(&adapter->reset_task, e1000_reset_task);
 	INIT_WORK(&adapter->watchdog_task, e1000_watchdog_task);
 	INIT_WORK(&adapter->downshift_task, e1000e_downshift_workaround);
@@ -7007,6 +7023,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* reset the hardware with the new settings */
 	e1000e_reset(adapter);
+	e_err("e1000_reset done");
 
 	/* If the controller has AMT, do not set DRV_LOAD until the interface
 	 * is up.  For all other cases, let the f/w know that the h/w is now
@@ -7031,6 +7048,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_put_noidle(&pdev->dev);
 
+	e_err("e1000_probe done");
 	return 0;
 
 err_register:
