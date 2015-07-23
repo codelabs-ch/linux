@@ -41,6 +41,7 @@ static void __init muen_init_IRQ(void)
 	int i;
 
 	native_init_IRQ();
+	init_ISA_irqs();
 
 	/* Create vector mapping for all IRQs */
 	for (i = IRQ0_VECTOR; i < NR_VECTORS; i++)
