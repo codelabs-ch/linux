@@ -44,8 +44,8 @@ static void __init muen_init_IRQ(void)
 	init_ISA_irqs();
 
 	/* Create vector mapping for all IRQs */
-	for (i = IRQ0_VECTOR; i < NR_VECTORS; i++)
-		__this_cpu_write(vector_irq[i], i - IRQ0_VECTOR);
+	for (i = ISA_IRQ_VECTOR(0); i < NR_VECTORS; i++)
+		__this_cpu_write(vector_irq[i], i - ISA_IRQ_VECTOR(0));
 }
 
 static void __init muen_platform_setup(void)
