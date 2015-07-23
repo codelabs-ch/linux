@@ -80,7 +80,7 @@ static int __init clockevent_muen_timer_init(void)
 	timer_page = (struct subject_timer_type *)ioremap_cache(region.address,
 								region.size);
 
-	timer_page->vector = IRQ0_VECTOR;
+	timer_page->vector = ISA_IRQ_VECTOR(0);
 	setup_default_timer_irq();
 
 	pr_info("Registering clockevent device muen-timer\n");
