@@ -32,8 +32,8 @@ static void noop(struct irq_data *data) { }
 static struct irq_chip msi_chip = {
 	.name        = "Muen-MSI",
 	.irq_ack     = noop,
-	.irq_mask    = mask_msi_irq,
-	.irq_unmask  = unmask_msi_irq,
+	.irq_mask    = pci_msi_mask_irq,
+	.irq_unmask  = pci_msi_unmask_irq,
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -121,7 +121,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	 */
 	if (!irq_offset) {
 		muen_msi_compose_msg(dev, irq, 0, &msg, -1);
-		write_msi_msg(irq, &msg);
+		pci_write_msi_msg(irq, &msg);
 	}
 
 	irq_set_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
@@ -190,7 +190,6 @@ int __init muen_msi_init(void)
 
 	x86_msi.setup_msi_irqs   = muen_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = muen_teardown_msi_irq;
-	x86_msi.compose_msi_msg  = muen_msi_compose_msg;
 
 	return 0;
 }
