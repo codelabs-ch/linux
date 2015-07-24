@@ -14,6 +14,7 @@
  */
 
 #include <asm/time.h>
+#include <asm/setup.h>
 
 #include <linux/module.h>
 #include <linux/clockchips.h>
@@ -80,6 +81,7 @@ static int __init clockevent_muen_timer_init(void)
 								region.size);
 
 	timer_page->vector = IRQ0_VECTOR;
+	setup_default_timer_irq();
 
 	pr_info("Registering clockevent device muen-timer\n");
 	muen_timer_clockevent.cpumask = cpu_online_mask;
