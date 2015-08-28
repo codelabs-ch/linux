@@ -217,6 +217,24 @@ uint64_t muen_get_tsc_khz(void)
 }
 EXPORT_SYMBOL(muen_get_tsc_khz);
 
+inline uint64_t muen_get_sched_start(void)
+{
+	if (!muen_check_magic())
+		return 0;
+
+	return sinfo->tsc_schedule_start;
+}
+EXPORT_SYMBOL(muen_get_sched_start);
+
+inline uint64_t muen_get_sched_end(void)
+{
+	if (!muen_check_magic())
+		return 0;
+
+	return sinfo->tsc_schedule_end;
+}
+EXPORT_SYMBOL(muen_get_sched_end);
+
 void __init muen_sinfo_early_init(void)
 {
 	/* This call site is too early to create mapping using ioremap */

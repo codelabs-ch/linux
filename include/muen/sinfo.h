@@ -105,4 +105,18 @@ bool muen_for_each_memregion(memregion_cb func, void *data);
  */
 uint64_t muen_get_tsc_khz(void);
 
+/*
+ * Return start time of current minor frame in TSC ticks.
+ *
+ * The function returns 0 if the start time cannot be retrieved.
+ */
+uint64_t muen_get_sched_start(void);
+
+/*
+ * Return end time of current minor frame in TSC ticks.
+ *
+ * The function returns 0 if the end time cannot be retrieved.
+ */
+uint64_t muen_get_sched_end(void);
+
 #endif /* MUEN_SINFO_H */
