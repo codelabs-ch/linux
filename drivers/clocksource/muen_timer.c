@@ -51,9 +51,8 @@ static void muen_timer_set_mode(const enum clock_event_mode mode,
 static int muen_timer_next_event(const unsigned long delta,
 				 struct clock_event_device *const evt)
 {
-	uint64_t tsc_now;
+	const uint64_t tsc_now = muen_get_sched_end();
 
-	rdtscll(tsc_now);
 	timer_page->value = tsc_now + delta;
 	return 0;
 }
