@@ -22,4 +22,12 @@ config MUEN_PCI_MSI
 	  The Muen PCI MSI driver provides support for Message Signaled Interrupts
 	  for passed through PCI devices.
 
+config MUEN_TSC
+	bool "Muen paravirt TSC driver"
+	depends on X86
+	default n
+	help
+	  The Muen paravirt TSC driver overrides the pv_cpu_ops.read_tsc function
+	  with a paravirtualized variant using the scheduling information exported
+	  by the Muen kernel via sinfo page.
 endmenu
