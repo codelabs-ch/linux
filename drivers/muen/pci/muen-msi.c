@@ -105,9 +105,8 @@ static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 }
 
 static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			      unsigned int irq_base, unsigned int irq_offset)
+			      const unsigned int irq)
 {
-	unsigned int const irq = irq_base + irq_offset;
 	struct msi_msg msg;
 	int ret;
 
@@ -115,14 +114,8 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * MSI-X message is written per-IRQ, the offset is always 0.
-	 * MSI message denotes a contiguous group of IRQs, written for 0th IRQ.
-	 */
-	if (!irq_offset) {
-		muen_msi_compose_msg(dev, irq, 0, &msg, -1);
-		pci_write_msi_msg(irq, &msg);
-	}
+	muen_msi_compose_msg(dev, irq, 0, &msg, -1);
+	pci_write_msi_msg(irq, &msg);
 
 	irq_set_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
@@ -162,7 +155,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	}
 
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		ret = muen_setup_msi_irq(dev, msidesc, irq, 0);
+		ret = muen_setup_msi_irq(dev, msidesc, irq);
 		if (ret < 0)
 			goto error;
 
