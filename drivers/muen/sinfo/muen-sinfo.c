@@ -124,6 +124,17 @@ static bool is_channel(const struct resource_type * const resource)
 	       resource->channel_info_idx != NO_RESOURCE;
 }
 
+static void fill_dev_data(uint8_t idx, struct muen_dev_info *dev)
+{
+	const struct dev_info_type dev_info = sinfo->dev_info[idx];
+
+	dev->sid         = dev_info.sid;
+	dev->irte_start  = dev_info.irte_start;
+	dev->irq_start   = dev_info.irq_start;
+	dev->ir_count    = dev_info.ir_count;
+	dev->msi_capable = dev_info.flags & DEV_MSI_FLAG;
+}
+
 bool muen_check_magic(void)
 {
 	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
@@ -169,6 +180,23 @@ bool muen_get_memregion_info(const char * const name,
 	return false;
 }
 EXPORT_SYMBOL(muen_get_memregion_info);
+
+bool muen_get_dev_info(const uint16_t sid, struct muen_dev_info *dev)
+{
+	int i;
+
+	if (!muen_check_magic())
+		return false;
+
+	for (i = 0; i < sinfo->dev_info_count; i++) {
+		if (sinfo->dev_info[i].sid == sid) {
+			fill_dev_data(i, dev);
+			return true;
+		}
+	}
+	return false;
+}
+EXPORT_SYMBOL(muen_get_dev_info);
 
 bool muen_for_each_channel(channel_cb func, void *data)
 {

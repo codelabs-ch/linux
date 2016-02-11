@@ -33,6 +33,15 @@ struct muen_channel_info {
 	bool has_vector;
 };
 
+/* Structure holding information about PCI devices */
+struct muen_dev_info {
+	uint16_t sid;
+	uint16_t irte_start;
+	uint8_t irq_start;
+	uint8_t ir_count;
+	bool msi_capable;
+};
+
 /*
  * Initialize Muen subject info data for early use when ioremap is not yet
  * available.
@@ -61,6 +70,14 @@ bool muen_get_channel_info(const char * const name,
  */
 bool muen_get_memregion_info(const char * const name,
 			     struct muen_memregion_info *memregion);
+
+/*
+ * Return information for PCI device with given SID.
+ *
+ * The function returns false if no device information for the specified device
+ * exists.
+ */
+bool muen_get_dev_info(const uint16_t sid, struct muen_dev_info *dev);
 
 /*
  * Channel callback.
