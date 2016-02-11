@@ -15,7 +15,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/acpi.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
@@ -23,6 +22,7 @@
 #include <asm/msidef.h>
 
 #include <muen/pci.h>
+#include <muen/sinfo.h>
 
 static void noop(struct irq_data *data) { }
 
@@ -37,56 +37,11 @@ static struct irq_chip msi_chip = {
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 
-/**
- * Returns the MSI handle of the given PCI device. The value is encoded
- * in the _PRT entry which has a PIN value greater than 3.
- */
-static int acpi_get_prt_msi_handle(struct pci_dev *dev)
-{
-	acpi_status status;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_pci_routing_table *entry;
-	acpi_handle handle = NULL;
-	const int device_addr = PCI_SLOT(dev->devfn);
-	int msi_handle = -1;
-
-	if (dev->bus->bridge)
-		handle = ACPI_HANDLE(dev->bus->bridge);
-
-	if (!handle)
-		return -ENODEV;
-
-	/* 'handle' is the _PRT's parent (root bridge or PCI-PCI bridge) */
-	status = acpi_get_irq_routing_table(handle, &buffer);
-	if (ACPI_FAILURE(status)) {
-		kfree(buffer.pointer);
-		return -ENODEV;
-	}
-
-	entry = buffer.pointer;
-	while (entry && (entry->length > 0)) {
-		if (((entry->address >> 16) & 0xffff) == device_addr &&
-		    entry->pin > 3) {
-			/* Handle is encoded in the _PRT entry's pin field */
-			msi_handle = entry->pin;
-			break;
-		}
-		entry = (struct acpi_pci_routing_table *)
-		    ((unsigned long)entry + entry->length);
-	}
-
-	kfree(buffer.pointer);
-	return msi_handle;
-}
-
 static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 				 unsigned int dest, struct msi_msg *msg,
-				 u8 hpet_id)
+				 u8 hpet_id, u16 handle)
 {
-	int handle, subhandle;
-
-	handle = acpi_get_prt_msi_handle(pdev);
-	BUG_ON(handle < 0);
+	int subhandle;
 
 	/* Set subhandle to offset from base IRQ */
 	subhandle = irq - pdev->irq;
@@ -105,7 +60,8 @@ static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 }
 
 static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			      const unsigned int irq)
+			      const unsigned int irq,
+			      const u16 handle)
 {
 	struct msi_msg msg;
 	int ret;
@@ -114,7 +70,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	if (ret < 0)
 		return ret;
 
-	muen_msi_compose_msg(dev, irq, 0, &msg, -1);
+	muen_msi_compose_msg(dev, irq, 0, &msg, -1, handle);
 	pci_write_msi_msg(irq, &msg);
 
 	irq_set_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
@@ -126,6 +82,8 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
 	int node, ret, irq = dev->irq;
+	uint16_t sid;
+	struct muen_dev_info dev_info;
 
 	/* Multiple vectors only supported for MSI-X */
 	if (nvec > 1 && type == PCI_CAP_ID_MSI) {
@@ -133,10 +91,22 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 	}
 
-	ret = acpi_get_prt_msi_handle(dev);
-	if (ret < 0) {
-		dev_info(&dev->dev, "No MSI handle configured\n");
-		return -EINVAL;
+	sid = dev->bus->number << 8 | dev->devfn;
+	if (!muen_get_dev_info(sid, &dev_info)) {
+		dev_err(&dev->dev, "Error retrieving Muen device info\n");
+		ret = -EINVAL;
+		goto error;
+	}
+	if (nvec > dev_info.ir_count) {
+		dev_err(&dev->dev, "Device requests more IRQs than allowed by policy (%d > %d)\n",
+			nvec, dev_info.ir_count);
+		ret = -EINVAL;
+		goto error;
+	}
+	if (!dev_info.msi_capable) {
+		dev_err(&dev->dev, "Device not configured for MSI\n");
+		ret = -EINVAL;
+		goto error;
 	}
 
 	node = dev_to_node(&dev->dev);
@@ -155,7 +125,8 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	}
 
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		ret = muen_setup_msi_irq(dev, msidesc, irq);
+		ret = muen_setup_msi_irq(dev, msidesc, irq,
+					 dev_info.irte_start);
 		if (ret < 0)
 			goto error;
 
