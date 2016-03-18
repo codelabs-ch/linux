@@ -81,7 +81,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
-	int node, ret, irq = dev->irq;
+	int node, ret, irq;
 	uint16_t sid;
 	struct muen_dev_info dev_info;
 
@@ -106,6 +106,8 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return -EINVAL;
 	}
 
+	irq = dev_info.irq_start - ISA_IRQ_VECTOR(0);
+	dev->irq = irq;
 	node = dev_to_node(&dev->dev);
 	if (irq >= NR_IRQS_LEGACY)
 		irq = irq_alloc_descs(irq, irq, nvec, node);
