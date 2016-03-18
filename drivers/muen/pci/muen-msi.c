@@ -91,7 +91,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 	}
 
-	sid = dev->bus->number << 8 | dev->devfn;
+	sid = PCI_DEVID(dev->bus->number, dev->devfn);
 	if (!muen_get_dev_info(sid, &dev_info)) {
 		dev_err(&dev->dev, "Error retrieving Muen device info\n");
 		return -EINVAL;
