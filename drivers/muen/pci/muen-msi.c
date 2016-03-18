@@ -94,19 +94,16 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	sid = dev->bus->number << 8 | dev->devfn;
 	if (!muen_get_dev_info(sid, &dev_info)) {
 		dev_err(&dev->dev, "Error retrieving Muen device info\n");
-		ret = -EINVAL;
-		goto error;
+		return -EINVAL;
 	}
 	if (nvec > dev_info.ir_count) {
 		dev_err(&dev->dev, "Device requests more IRQs than allowed by policy (%d > %d)\n",
 			nvec, dev_info.ir_count);
-		ret = -EINVAL;
-		goto error;
+		return -EINVAL;
 	}
 	if (!dev_info.msi_capable) {
 		dev_err(&dev->dev, "Device not configured for MSI\n");
-		ret = -EINVAL;
-		goto error;
+		return -EINVAL;
 	}
 
 	node = dev_to_node(&dev->dev);
@@ -114,7 +111,9 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		irq = irq_alloc_descs(irq, irq, nvec, node);
 
 	if (irq < 0) {
-		dev_err(&dev->dev, "No space\n");
+		dev_err(&dev->dev,
+			"Error allocating IRQ desc: No space for %d IRQ(s)\n",
+			nvec);
 		ret = -ENOSPC;
 		goto error;
 	} else if (irq != dev->irq) {
