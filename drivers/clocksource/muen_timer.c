@@ -20,12 +20,14 @@
 #include <linux/clockchips.h>
 #include <muen/sinfo.h>
 
-struct subject_timer_type {
-	uint64_t value;
-	uint8_t vector;
+#define TIMER_EVENT 31
+
+struct subject_timed_event_type {
+	uint64_t tsc_trigger;
+	unsigned int event_nr :5;
 } __packed;
 
-static struct subject_timer_type *timer_page;
+static struct subject_timed_event_type *timer_page;
 
 static void muen_timer_set_mode(const enum clock_event_mode mode,
 				struct clock_event_device *const evt)
@@ -38,8 +40,8 @@ static void muen_timer_set_mode(const enum clock_event_mode mode,
 
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		/* Cancel timer by setting timer to maximum value */
-		timer_page->value = ULLONG_MAX;
+		/* Cancel timer by setting trigger to maximum value */
+		timer_page->tsc_trigger = ULLONG_MAX;
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -53,7 +55,7 @@ static int muen_timer_next_event(const unsigned long delta,
 {
 	const uint64_t tsc_now = muen_get_sched_end();
 
-	timer_page->value = tsc_now + delta;
+	timer_page->tsc_trigger = tsc_now + delta;
 	return 0;
 }
 
@@ -69,17 +71,17 @@ static int __init clockevent_muen_timer_init(void)
 {
 	struct muen_memregion_info region;
 
-	if (!muen_get_memregion_info("timer", &region)) {
-		pr_warn("Unable to retrieve Muen time memory region\n");
+	if (!muen_get_memregion_info("timed_event", &region)) {
+		pr_warn("Unable to retrieve Muen timed event region\n");
 		return -1;
 	}
-	pr_info("Using Muen time memory region at address 0x%llx\n",
+	pr_info("Using Muen timed event region at address 0x%llx\n",
 		region.address);
 
-	timer_page = (struct subject_timer_type *)ioremap_cache(region.address,
-								region.size);
+	timer_page = (struct subject_timed_event_type *)ioremap_cache
+	    (region.address, region.size);
 
-	timer_page->vector = ISA_IRQ_VECTOR(0);
+	timer_page->event_nr = TIMER_EVENT;
 	setup_default_timer_irq();
 
 	pr_info("Registering clockevent device muen-timer\n");
