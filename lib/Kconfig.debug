@@ -706,6 +706,16 @@ config HARDLOCKUP_DETECTOR
 	depends on LOCKUP_DETECTOR && !HAVE_NMI_WATCHDOG
 	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 
+config SOFTLOCKUP_SOFTIRQ_DEBUG
+	bool "Debug softirq lockups"
+	depends on LOCKUP_DETECTOR
+	default n
+	help
+	  If a softlockup happens in a softirq, the softlockup
+	  stack trace is utterly unhelpful; it will only show the
+	  stack up to __do_softirq(), since this is where interrupts
+	  are reenabled.
+
 config BOOTPARAM_HARDLOCKUP_PANIC
 	bool "Panic (Reboot) On Hard Lockups"
 	depends on HARDLOCKUP_DETECTOR

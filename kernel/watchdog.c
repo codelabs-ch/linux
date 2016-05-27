@@ -20,6 +20,7 @@
 #include <linux/smpboot.h>
 #include <linux/sched/rt.h>
 #include <linux/tick.h>
+#include <linux/interrupt.h>
 
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
@@ -411,6 +412,12 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		__this_cpu_write(softlockup_task_ptr_saved, current);
 		print_modules();
 		print_irqtrace_events(current);
+
+#ifdef CONFIG_SOFTLOCKUP_SOFTIRQ_DEBUG
+		print_symbol(KERN_ERR "Last softirq was %s\n",
+				(unsigned long) get_last_softirq_action(smp_processor_id()));
+#endif
+
 		if (regs)
 			show_regs(regs);
 		else

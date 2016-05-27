@@ -19,6 +19,7 @@
 #include <linux/percpu.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
+#include <linux/kallsyms.h>
 #include <linux/kthread.h>
 #include <linux/rcupdate.h>
 #include <linux/ftrace.h>
@@ -178,6 +179,15 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 }
 EXPORT_SYMBOL(__local_bh_enable_ip);
 
+#ifdef CONFIG_SOFTLOCKUP_SOFTIRQ_DEBUG
+static DEFINE_PER_CPU(void *, last_softirq_action);
+
+void *get_last_softirq_action(int cpu)
+{
+   return per_cpu(last_softirq_action, cpu);
+}
+#endif
+
 /*
  * We restart softirq processing for at most MAX_SOFTIRQ_RESTART times,
  * but break the loop if need_resched() is set or after 2 ms.
@@ -269,6 +279,9 @@ restart:
 
 		kstat_incr_softirqs_this_cpu(vec_nr);
 
+#ifdef CONFIG_SOFTLOCKUP_SOFTIRQ_DEBUG
+		per_cpu(last_softirq_action, smp_processor_id()) = h->action;
+#endif
 		trace_softirq_entry(vec_nr);
 		h->action(h);
 		trace_softirq_exit(vec_nr);
