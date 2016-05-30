@@ -457,6 +457,7 @@ extern void raise_softirq(unsigned int nr);
 
 #ifdef CONFIG_SOFTLOCKUP_SOFTIRQ_DEBUG
 extern void *get_last_softirq_action(int cpu);
+extern void *get_last_tasklet_action(int cpu);
 #endif
 
 DECLARE_PER_CPU(struct task_struct *, ksoftirqd);

@@ -416,6 +416,8 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 #ifdef CONFIG_SOFTLOCKUP_SOFTIRQ_DEBUG
 		print_symbol(KERN_ERR "Last softirq was %s\n",
 				(unsigned long) get_last_softirq_action(smp_processor_id()));
+		print_symbol(KERN_ERR "Last tasklet was %s\n",
+				(unsigned long) get_last_tasklet_action(smp_processor_id()));
 #endif
 
 		if (regs)

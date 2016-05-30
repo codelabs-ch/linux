@@ -181,10 +181,16 @@ EXPORT_SYMBOL(__local_bh_enable_ip);
 
 #ifdef CONFIG_SOFTLOCKUP_SOFTIRQ_DEBUG
 static DEFINE_PER_CPU(void *, last_softirq_action);
+static DEFINE_PER_CPU(void *, last_tasklet_action);
 
 void *get_last_softirq_action(int cpu)
 {
    return per_cpu(last_softirq_action, cpu);
+}
+
+void *get_last_tasklet_action(int cpu)
+{
+   return per_cpu(last_tasklet_action, cpu);
 }
 #endif
 
@@ -515,6 +521,10 @@ static void tasklet_action(struct softirq_action *a)
 				if (!test_and_clear_bit(TASKLET_STATE_SCHED,
 							&t->state))
 					BUG();
+
+#ifdef CONFIG_SOFTLOCKUP_SOFTIRQ_DEBUG
+				per_cpu(last_tasklet_action, smp_processor_id()) = t->func;
+#endif
 				t->func(t->data);
 				tasklet_unlock(t);
 				continue;
