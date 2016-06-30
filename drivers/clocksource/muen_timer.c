@@ -29,25 +29,10 @@ struct subject_timed_event_type {
 
 static struct subject_timed_event_type *timer_page;
 
-static void muen_timer_set_mode(const enum clock_event_mode mode,
-				struct clock_event_device *const evt)
+static int muen_timer_shutdown(struct clock_event_device *const evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		/* unsupported */
-		WARN_ON(1);
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		/* Cancel timer by setting trigger to maximum value */
-		timer_page->tsc_trigger = ULLONG_MAX;
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	timer_page->tsc_trigger = ULLONG_MAX;
+	return 0;
 }
 
 static int muen_timer_next_event(const unsigned long delta,
@@ -60,11 +45,11 @@ static int muen_timer_next_event(const unsigned long delta,
 }
 
 static struct clock_event_device muen_timer_clockevent = {
-	.name		= "muen-timer",
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= muen_timer_set_mode,
-	.set_next_event = muen_timer_next_event,
-	.rating		= INT_MAX,
+	.name			= "muen-timer",
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.set_next_event		= muen_timer_next_event,
+	.set_state_shutdown	= muen_timer_shutdown,
+	.rating			= INT_MAX,
 };
 
 static int __init clockevent_muen_timer_init(void)
@@ -96,5 +81,5 @@ arch_initcall(clockevent_muen_timer_init);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
-MODULE_DESCRIPTION("Muen clock event driver");
+MODULE_DESCRIPTION("Muen clockevent driver");
 MODULE_LICENSE("GPL");
