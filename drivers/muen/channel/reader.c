@@ -13,6 +13,9 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/div64.h>
+#include <asm/unaligned.h>
+
 #include <muen/reader.h>
 
 static bool has_epoch_changed(const struct muchannel * const channel,

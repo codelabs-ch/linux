@@ -13,6 +13,9 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/div64.h>
+#include <asm/unaligned.h>
+
 #include <muen/writer.h>
 
 void muen_channel_init_writer(struct muchannel *channel, const u64 protocol,
