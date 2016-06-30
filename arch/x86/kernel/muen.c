@@ -29,14 +29,8 @@ static int muen_pic_probe(void) { return NR_IRQS_LEGACY; }
 
 static void __init muen_init_IRQ(void)
 {
-	int i;
-
 	native_init_IRQ();
 	init_ISA_irqs();
-
-	/* Create vector mapping for all IRQs */
-	for (i = ISA_IRQ_VECTOR(0); i < NR_VECTORS; i++)
-		__this_cpu_write(vector_irq[i], i - ISA_IRQ_VECTOR(0));
 }
 
 static void __init muen_platform_setup(void)
