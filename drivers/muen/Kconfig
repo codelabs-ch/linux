@@ -29,4 +29,11 @@ config MUEN_CLKSRC
 	default n
 	help
 	  Muen clocksource driver.
+
+config MUEN_CLKEVT
+	bool "Muen clockevent driver"
+	depends on MUEN_SINFO
+	default n
+	help
+	  Muen clockevent driver.
 endmenu

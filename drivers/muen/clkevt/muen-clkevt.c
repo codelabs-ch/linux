@@ -44,15 +44,15 @@ static int muen_timer_next_event(const unsigned long delta,
 	return 0;
 }
 
-static struct clock_event_device muen_timer_clockevent = {
-	.name			= "muen-timer",
+static struct clock_event_device muen_clockevent = {
+	.name			= "muen-clkevt",
 	.features		= CLOCK_EVT_FEAT_ONESHOT,
 	.set_next_event		= muen_timer_next_event,
 	.set_state_shutdown	= muen_timer_shutdown,
 	.rating			= INT_MAX,
 };
 
-static int __init clockevent_muen_timer_init(void)
+static int __init muen_ce_init(void)
 {
 	struct muen_memregion_info region;
 
@@ -69,15 +69,15 @@ static int __init clockevent_muen_timer_init(void)
 	timer_page->event_nr = TIMER_EVENT;
 	setup_default_timer_irq();
 
-	pr_info("Registering clockevent device muen-timer\n");
-	muen_timer_clockevent.cpumask = cpu_online_mask;
-	clockevents_config_and_register(&muen_timer_clockevent,
+	pr_info("Registering clockevent device muen-clkevt\n");
+	muen_clockevent.cpumask = cpu_online_mask;
+	clockevents_config_and_register(&muen_clockevent,
 					muen_get_tsc_khz() * 1000, 1, UINT_MAX);
-	global_clock_event = &muen_timer_clockevent;
+	global_clock_event = &muen_clockevent;
 	return 0;
 }
 
-arch_initcall(clockevent_muen_timer_init);
+arch_initcall(muen_ce_init);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");

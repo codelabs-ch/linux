@@ -411,10 +411,4 @@ config CLKSRC_ST_LPC
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
 
-config CLKEVT_MUEN_TIMER
-	bool "Muen clockevent timer"
-	depends on MUEN_SINFO
-	help
-	  Uses the Muen SK's shared memory timer.
-
 endmenu
