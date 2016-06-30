@@ -1,1 +1,1 @@
-obj-$(CONFIG_MUEN_SINFO) += muen-sinfo.o
+obj-y += muen-sinfo.o

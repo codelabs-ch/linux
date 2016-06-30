@@ -1,1 +1,1 @@
-obj-$(CONFIG_MUEN_CHANNEL) += channel.o reader.o writer.o
+obj-y += channel.o reader.o writer.o

@@ -38,10 +38,7 @@ obj-y				+= soc/
 
 obj-$(CONFIG_VIRTIO)		+= virtio/
 obj-$(CONFIG_XEN)		+= xen/
-obj-$(CONFIG_MUEN_CHANNEL)	+= muen/channel/
-obj-$(CONFIG_MUEN_SINFO)	+= muen/sinfo/
-obj-$(CONFIG_MUEN_PCI_MSI)	+= muen/pci/
-obj-$(CONFIG_MUEN_TSC)		+= muen/tsc/
+obj-$(CONFIG_MUEN_GUEST)	+= muen/
 
 # regulators early, since some subsystems rely on them to initialize
 obj-$(CONFIG_REGULATOR)		+= regulator/

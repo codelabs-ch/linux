@@ -2,13 +2,14 @@ menu "Muen driver support"
 
 config MUEN_CHANNEL
 	bool "Muen shared memory channels"
+	depends on MUEN_GUEST
 	help
 	  This option is selected by any driver that uses the Muen shared memory
 	  channels.
 
 config MUEN_SINFO
 	bool "Muen subject information driver"
-	depends on X86
+	depends on MUEN_GUEST
 	default n
 	help
 	  The Muen subject information driver provides data about the execution
@@ -16,7 +17,7 @@ config MUEN_SINFO
 
 config MUEN_PCI_MSI
 	bool "Muen PCI Message Signaled Interrupt support"
-	depends on X86 && PCI_MSI
+	depends on MUEN_SINFO && PCI_MSI
 	default n
 	help
 	  The Muen PCI MSI driver provides support for Message Signaled Interrupts
@@ -24,7 +25,7 @@ config MUEN_PCI_MSI
 
 config MUEN_TSC
 	bool "Muen paravirt TSC driver"
-	depends on X86
+	depends on MUEN_SINFO
 	default n
 	help
 	  The Muen paravirt TSC driver overrides the pv_cpu_ops.read_tsc function

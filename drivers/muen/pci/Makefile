@@ -1,1 +1,1 @@
-obj-$(CONFIG_MUEN_PCI_MSI) += muen-msi.o
+obj-y += muen-msi.o
