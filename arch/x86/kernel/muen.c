@@ -25,6 +25,7 @@
 #include <muen/sinfo.h>
 #include <muen/pci.h>
 
+static int muen_pic_probe(void) { return NR_IRQS_LEGACY; }
 
 static void __init muen_init_IRQ(void)
 {
@@ -46,6 +47,7 @@ static void __init muen_platform_setup(void)
 #endif
 
 	null_legacy_pic.nr_legacy_irqs = NR_IRQS_LEGACY;
+	null_legacy_pic.probe          = muen_pic_probe;
 	legacy_pic = &null_legacy_pic;
 }
 
