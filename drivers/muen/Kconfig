@@ -22,4 +22,11 @@ config MUEN_PCI_MSI
 	help
 	  The Muen PCI MSI driver provides support for Message Signaled Interrupts
 	  for passed through PCI devices.
+
+config MUEN_CLKSRC
+	bool "Muen clocksource driver"
+	depends on MUEN_SINFO
+	default n
+	help
+	  Muen clocksource driver.
 endmenu
