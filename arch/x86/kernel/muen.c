@@ -27,6 +27,11 @@
 
 static int muen_pic_probe(void) { return NR_IRQS_LEGACY; }
 
+static void muen_set_cpu_features(struct cpuinfo_x86 *c)
+{
+       clear_cpu_cap(c, X86_FEATURE_TSC);
+}
+
 static void __init muen_init_IRQ(void)
 {
 	native_init_IRQ();
@@ -52,8 +57,9 @@ static uint32_t __init muen_platform(void)
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_muen = {
-	.name		= "Muen SK",
-	.detect		= muen_platform,
-	.init_platform	= muen_platform_setup,
+	.name		  = "Muen SK",
+	.detect		  = muen_platform,
+	.set_cpu_features = muen_set_cpu_features,
+	.init_platform	  = muen_platform_setup,
 };
 EXPORT_SYMBOL(x86_hyper_muen);
