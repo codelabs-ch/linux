@@ -95,7 +95,7 @@ static void process_input(struct muen_dev *input_dev,
 		if (info.rel_y != 0)
 			input_report_rel(input_dev->ptr, REL_WHEEL,
 					 info.rel_y);
-			input_sync(input_dev->ptr);
+		input_sync(input_dev->ptr);
 		break;
 	case MUEN_EV_PRESS:
 		key_press = true;
