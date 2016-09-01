@@ -67,13 +67,14 @@ static int __init muen_ce_init(void)
 	    (region.address, region.size);
 
 	timer_page->event_nr = TIMER_EVENT;
+
+	global_clock_event = &muen_clockevent;
 	setup_default_timer_irq();
 
 	pr_info("Registering clockevent device muen-clkevt\n");
 	muen_clockevent.cpumask = cpu_online_mask;
 	clockevents_config_and_register(&muen_clockevent,
 					muen_get_tsc_khz() * 1000, 1, UINT_MAX);
-	global_clock_event = &muen_clockevent;
 	return 0;
 }
 
