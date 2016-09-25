@@ -4,6 +4,7 @@
 #include <linux/init.h>
 
 #define MAX_CHANNEL_NAME_LEN 63
+#define HASH_LENGTH          32
 
 /*
  * Muen subject information API.
@@ -13,12 +14,19 @@
  */
 
 /* Structure holding information about a memory region */
+enum muen_content_type {
+	muen_content_uninitialized, muen_content_fill, muen_content_file
+};
+
 struct muen_memregion_info {
 	char name[MAX_CHANNEL_NAME_LEN + 1];
+	enum muen_content_type content;
 	uint64_t address;
 	uint64_t size;
 	bool writable;
 	bool executable;
+	uint8_t hash[HASH_LENGTH];
+	uint16_t pattern;
 };
 
 /* Structure holding information about a Muen channel */

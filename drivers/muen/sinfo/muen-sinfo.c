@@ -66,13 +66,35 @@ static bool log_channel(const struct muen_channel_info * const channel,
 	return true;
 }
 
+uint8_t no_hash[HASH_LENGTH] = {0};
+
+static const char * const content_names[] = {
+	"uninitialized", "fill", "file",
+};
+
+static bool hash_available(const uint8_t * const first)
+{
+	return memcmp(first, no_hash, HASH_LENGTH) != 0;
+}
+
 static bool log_memregion(const struct muen_memregion_info * const region,
 			  void *data)
 {
-	pr_info("muen-sinfo: [addr 0x%016llx size 0x%016llx %s%s] %s\n",
-		region->address, region->size,
-		region->writable ? "rw" : "ro",
-		region->executable ? "x" : "-", region->name);
+	char str[65];
+
+	pr_info("muen-sinfo: [%s, addr 0x%016llx size 0x%016llx %s%s] %s\n",
+		content_names[region->content], region->address, region->size,
+		region->writable ? "rw" : "ro", region->executable ? "x" : "-",
+		region->name);
+
+	if (region->content == muen_content_fill)
+		pr_info("muen-sinfo:  [pattern 0x%.2x]\n", region->pattern);
+
+	if (hash_available(region->hash)) {
+		bin2hex(&str[0], (void *)region->hash, HASH_LENGTH);
+		str[64] = '\0';
+		pr_info("muen-sinfo:  [hash 0x%s]\n", str);
+	}
 
 	return true;
 }
@@ -107,8 +129,12 @@ static void fill_memregion_data(uint8_t idx, struct muen_memregion_info *region)
 	memset(&region->name, 0, MAX_NAME_LENGTH + 1);
 	memcpy(&region->name, resource.name.data, resource.name.length);
 
+	memcpy(&region->hash, memregion.hash, HASH_LENGTH);
+
+	region->content    = memregion.content;
 	region->address    = memregion.address;
 	region->size       = memregion.size;
+	region->pattern    = memregion.pattern;
 	region->writable   = memregion.flags & MEM_WRITABLE_FLAG;
 	region->executable = memregion.flags & MEM_EXECUTABLE_FLAG;
 }
