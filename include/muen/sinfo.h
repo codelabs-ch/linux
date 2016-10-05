@@ -3,8 +3,8 @@
 
 #include <linux/init.h>
 
-#define MAX_CHANNEL_NAME_LEN 63
-#define HASH_LENGTH          32
+#define MAX_NAME_LENGTH	63
+#define HASH_LENGTH	32
 
 /*
  * Muen subject information API.
@@ -15,11 +15,11 @@
 
 /* Structure holding information about a memory region */
 enum muen_content_type {
-	muen_content_uninitialized, muen_content_fill, muen_content_file
+	MUEN_CONTENT_UNINITIALIZED, MUEN_CONTENT_FILL, MUEN_CONTENT_FILE
 };
 
 struct muen_memregion_info {
-	char name[MAX_CHANNEL_NAME_LEN + 1];
+	char name[MAX_NAME_LENGTH + 1];
 	enum muen_content_type content;
 	uint64_t address;
 	uint64_t size;
@@ -31,7 +31,7 @@ struct muen_memregion_info {
 
 /* Structure holding information about a Muen channel */
 struct muen_channel_info {
-	char name[MAX_CHANNEL_NAME_LEN + 1];
+	char name[MAX_NAME_LENGTH + 1];
 	uint64_t address;
 	uint64_t size;
 	uint8_t event_number;

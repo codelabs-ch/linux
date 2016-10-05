@@ -87,7 +87,7 @@ static bool log_memregion(const struct muen_memregion_info * const region,
 		region->writable ? "rw" : "ro", region->executable ? "x" : "-",
 		region->name);
 
-	if (region->content == muen_content_fill)
+	if (region->content == MUEN_CONTENT_FILL)
 		pr_info("muen-sinfo:  [pattern 0x%.2x]\n", region->pattern);
 
 	if (hash_available(region->hash)) {
