@@ -62,6 +62,13 @@ void __init muen_sinfo_early_init(void);
 bool muen_check_magic(void);
 
 /*
+ * Return subject name.
+ *
+ * The function returns NULL if thei subject name cannot be retrieved.
+ */
+const char * const muen_get_subject_name(void);
+
+/*
  * Return information for a channel given by name.
  *
  * If no channel with given name exists, False is returned. The event_number

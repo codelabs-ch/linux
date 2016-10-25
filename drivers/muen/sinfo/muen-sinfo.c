@@ -33,6 +33,9 @@
 
 #include "musinfo.h"
 
+static char subject_name[MAX_NAME_LENGTH + 1];
+static bool subject_name_set = false;
+
 static unsigned long long sinfo_addr;
 static int __init setup_sinfo_addr(char *arg)
 {
@@ -166,6 +169,22 @@ bool muen_check_magic(void)
 	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
 }
 EXPORT_SYMBOL(muen_check_magic);
+
+const char * const muen_get_subject_name(void)
+{
+	if (!muen_check_magic())
+		return NULL;
+
+	if (!subject_name_set)
+	{
+		memset(subject_name, 0, MAX_NAME_LENGTH + 1);
+		memcpy(subject_name, &sinfo->name.data, sinfo->name.length);
+		subject_name_set = true;
+	}
+
+	return subject_name;
+}
+EXPORT_SYMBOL(muen_get_subject_name);
 
 bool muen_get_channel_info(const char * const name,
 			   struct muen_channel_info *channel)
@@ -305,6 +324,7 @@ static int __init muen_sinfo_init(void)
 	}
 
 	pr_info("muen-sinfo: Subject information @ 0x%016llx\n", sinfo_addr);
+	pr_info("muen-sinfo: Subject name is '%s'\n", muen_get_subject_name());
 	pr_info("muen-sinfo: Subject information exports %d memory region(s)\n",
 		sinfo->memregion_count);
 	muen_for_each_memregion(log_memregion, NULL);
