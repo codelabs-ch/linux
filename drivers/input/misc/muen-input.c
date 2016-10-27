@@ -135,6 +135,8 @@ static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 			break;
 		case MUCHANNEL_OVERRUN_DETECTED:
 			pr_warn("muen-input: Channel overrun\n");
+			muen_channel_drain(muen_input->channel,
+					   &muen_input->reader);
 			break;
 		case MUCHANNEL_INCOMPATIBLE_INTERFACE:
 			pr_err("muen-input: Incompatible channel interface\n");
@@ -157,6 +159,7 @@ static struct resource muen_input_res = {
 static int __init muen_input_init(void)
 {
 	struct muen_channel_info channel;
+	struct muen_input_event ev;
 	uint8_t irq_number;
 	int i, error;
 
@@ -260,7 +263,10 @@ static int __init muen_input_init(void)
 		goto error_register_ptr;
 	}
 
+	/* Initialize reader and discard all previous data */
 	muen_channel_init_reader(&muen_input->reader, MUEN_PROTO_INPUT);
+	muen_channel_read(muen_input->channel, &muen_input->reader, &ev);
+	muen_channel_drain(muen_input->channel, &muen_input->reader);
 
 	return 0;
 
