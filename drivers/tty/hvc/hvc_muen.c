@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/kvm_para.h>
+#include <linux/random.h>
 #include <muen/sinfo.h>
 #include <muen/writer.h>
 
@@ -98,7 +99,8 @@ static int __init hvc_muen_console_init(void)
 
 	channel_out = (struct muchannel *)__va(channel.address);
 
-	muen_channel_init_writer(channel_out, 1, 1, channel_size, 1);
+	muen_channel_init_writer(channel_out, 1, 1, channel_size,
+				 get_random_long());
 	hvc_instantiate(HVC_MUEN_COOKIE, 0, &hvc_muen_ops);
 
 	return 0;
