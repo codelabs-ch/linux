@@ -65,7 +65,8 @@ enum muchannel_reader_result muen_channel_read(
 	enum muchannel_reader_result result;
 
 	if (muen_channel_is_active(channel)) {
-		if (has_epoch_changed(channel, reader))
+		if (reader->epoch == MUCHANNEL_NULL_EPOCH ||
+				has_epoch_changed(channel, reader))
 			return synchronize(channel, reader);
 
 		if (reader->rc >= atomic64_read(&channel->hdr.wc))
@@ -86,8 +87,10 @@ enum muchannel_reader_result muen_channel_read(
 			if (has_epoch_changed(channel, reader))
 				result = MUCHANNEL_EPOCH_CHANGED;
 		}
-	} else
+	} else {
+		reader->epoch = MUCHANNEL_NULL_EPOCH;
 		result = MUCHANNEL_INACTIVE;
+	}
 
 	return result;
 };
