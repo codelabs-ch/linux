@@ -32,6 +32,7 @@
 #include <muen/sinfo.h>
 
 #include "musinfo.h"
+#include "muschedinfo.h"
 
 static char subject_name[MAX_NAME_LENGTH + 1];
 static bool subject_name_set = false;
@@ -48,6 +49,7 @@ static int __init setup_sinfo_addr(char *arg)
 early_param("muen_sinfo", setup_sinfo_addr);
 
 static const struct subject_info_type *sinfo;
+static const struct scheduling_info_type *sched_info;
 
 static bool log_channel(const struct muen_channel_info * const channel,
 			void *data)
@@ -295,7 +297,7 @@ inline uint64_t muen_get_sched_start(void)
 	if (!muen_check_magic())
 		return 0;
 
-	return sinfo->tsc_schedule_start;
+	return atomic64_read(&sched_info->tsc_schedule_start);
 }
 EXPORT_SYMBOL(muen_get_sched_start);
 
@@ -304,26 +306,40 @@ inline uint64_t muen_get_sched_end(void)
 	if (!muen_check_magic())
 		return 0;
 
-	return sinfo->tsc_schedule_end;
+	return atomic64_read(&sched_info->tsc_schedule_end);
 }
 EXPORT_SYMBOL(muen_get_sched_end);
 
 void __init muen_sinfo_early_init(void)
 {
+	const unsigned long sinfo_page_size = roundup
+		(sizeof(struct subject_info_type),
+		 PAGE_SIZE);
+
 	/* This call site is too early to create mapping using ioremap */
-	sinfo = (struct subject_info_type *)__va(sinfo_addr);
+	sinfo      = (struct subject_info_type *)__va(sinfo_addr);
+	sched_info = (struct scheduling_info_type *)__va(sinfo_addr +
+			sinfo_page_size);
 }
 
 static int __init muen_sinfo_init(void)
 {
+	const unsigned long sinfo_page_size = roundup
+		(sizeof(struct subject_info_type),
+		 PAGE_SIZE);
 	sinfo = (struct subject_info_type *)ioremap_cache(sinfo_addr,
 			sizeof(struct subject_info_type));
 	if (!muen_check_magic()) {
 		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
 		return -EINVAL;
 	}
+	sched_info = (struct scheduling_info_type *)ioremap_cache
+	    (sinfo_addr + sinfo_page_size,
+	     sizeof(struct scheduling_info_type));
 
 	pr_info("muen-sinfo: Subject information @ 0x%016llx\n", sinfo_addr);
+	pr_info("muen-sinfo: Scheduling information @ 0x%016llx\n",
+		sinfo_addr + sinfo_page_size);
 	pr_info("muen-sinfo: Subject name is '%s'\n", muen_get_subject_name());
 	pr_info("muen-sinfo: Subject information exports %d memory region(s)\n",
 		sinfo->memregion_count);
