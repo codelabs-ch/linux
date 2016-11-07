@@ -35,7 +35,7 @@
 #include "muschedinfo.h"
 
 static char subject_name[MAX_NAME_LENGTH + 1];
-static bool subject_name_set = false;
+static bool subject_name_unset = true;
 
 static unsigned long long sinfo_addr;
 static int __init setup_sinfo_addr(char *arg)
@@ -177,11 +177,10 @@ const char * const muen_get_subject_name(void)
 	if (!muen_check_magic())
 		return NULL;
 
-	if (!subject_name_set)
-	{
+	if (subject_name_unset)	{
 		memset(subject_name, 0, MAX_NAME_LENGTH + 1);
 		memcpy(subject_name, &sinfo->name.data, sinfo->name.length);
-		subject_name_set = true;
+		subject_name_unset = false;
 	}
 
 	return subject_name;
