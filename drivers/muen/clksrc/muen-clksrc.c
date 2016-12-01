@@ -45,10 +45,11 @@ static struct clocksource muen_cs = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static cycle_t muen_sched_clock_read(void)
+inline cycle_t muen_sched_clock_read(void)
 {
 	return muen_cs_read(&muen_cs);
 }
+EXPORT_SYMBOL(muen_sched_clock_read);
 
 static int __init muen_cs_init(void)
 {
