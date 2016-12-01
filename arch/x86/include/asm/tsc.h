@@ -19,6 +19,12 @@ extern unsigned int tsc_khz;
 
 extern void disable_TSC(void);
 
+#ifdef CONFIG_MUEN_GUEST
+extern cycle_t muen_sched_clock_read(void);
+
+#define get_cycles()	muen_sched_clock_read()
+
+#else
 static inline cycles_t get_cycles(void)
 {
 #ifndef CONFIG_X86_TSC
@@ -28,6 +34,7 @@ static inline cycles_t get_cycles(void)
 
 	return rdtsc();
 }
+#endif
 
 extern struct system_counterval_t convert_art_to_tsc(cycle_t art);
 
