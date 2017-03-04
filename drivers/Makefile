@@ -45,6 +45,7 @@ obj-$(CONFIG_VIRTIO)		+= virtio/
 obj-$(CONFIG_VIRTIO_PCI_LIB)	+= virtio/
 obj-$(CONFIG_VDPA)		+= vdpa/
 obj-$(CONFIG_XEN)		+= xen/
+obj-$(CONFIG_MUEN_GUEST)	+= muen/
 
 # regulators early, since some subsystems rely on them to initialize
 obj-$(CONFIG_REGULATOR)		+= regulator/
