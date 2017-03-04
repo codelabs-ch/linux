@@ -40,4 +40,13 @@ config MUEN_PCI_MSI
 	  The Muen PCI MSI driver provides support for Message Signaled Interrupts
 	  for passed through PCI devices.
 
+config MUEN_INPUT
+	tristate "Muen virtual input device support"
+	depends on MUEN_SINFO
+	depends on MUEN_CHANNEL
+	default n
+	help
+	  This driver implements the Muen virtual input device driver. It
+	  processes keyboard and mouse inputs via a shared memory channel.
+
 endmenu
