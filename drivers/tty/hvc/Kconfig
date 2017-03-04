@@ -60,6 +60,15 @@ config HVC_XEN
 	help
 	  Xen virtual console device driver
 
+config HVC_MUEN
+	bool "Muen virtual console support"
+	depends on MUEN_SINFO
+	select HVC_DRIVER
+	select MUEN_CHANNEL
+	default n
+	help
+	  Muen virtual console device driver
+
 config HVC_XEN_FRONTEND
 	bool "Xen Hypervisor Multiple Consoles support"
 	depends on HVC_XEN
