@@ -19,6 +19,12 @@ extern unsigned int tsc_khz;
 
 extern void disable_TSC(void);
 
+#ifdef CONFIG_MUEN_GUEST
+extern u64 muen_sched_clock_read(void);
+
+#define get_cycles()	muen_sched_clock_read()
+
+#else
 static inline cycles_t get_cycles(void)
 {
 	unsigned long long ret = 0;
@@ -31,6 +37,7 @@ static inline cycles_t get_cycles(void)
 
 	return ret;
 }
+#endif
 
 static __always_inline cycles_t vget_cycles(void)
 {
