@@ -44,6 +44,7 @@ obj-y				+= soc/
 obj-y				+= virtio/
 obj-$(CONFIG_VDPA)		+= vdpa/
 obj-$(CONFIG_XEN)		+= xen/
+obj-$(CONFIG_MUEN_GUEST)	+= muen/
 
 # regulators early, since some subsystems rely on them to initialize
 obj-$(CONFIG_REGULATOR)		+= regulator/
