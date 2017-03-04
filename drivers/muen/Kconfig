@@ -8,4 +8,12 @@ config MUEN_CHANNEL
 	  Version 2 IPC protocol (shmstream). This option is selected by any
 	  driver that uses Muen shared memory channels.
 
+config MUEN_SINFO
+	bool "Muen subject information driver"
+	depends on MUEN_GUEST
+	default n
+	help
+	  The Muen subject information driver provides data about the execution
+	  environment to other Muen modules.
+
 endmenu
