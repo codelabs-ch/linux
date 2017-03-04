@@ -32,4 +32,12 @@ config MUEN_CLKEVT
 	  This driver implements a clockevent timer using the timed event mechanism
 	  provided by the Muen SK.
 
+config MUEN_PCI_MSI
+	bool "Muen PCI Message Signaled Interrupt support"
+	depends on MUEN_SINFO && PCI_MSI
+	default n
+	help
+	  The Muen PCI MSI driver provides support for Message Signaled Interrupts
+	  for passed through PCI devices.
+
 endmenu
