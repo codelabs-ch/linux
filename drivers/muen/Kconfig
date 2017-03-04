@@ -24,4 +24,12 @@ config MUEN_CLKSRC
 	  This driver implements a clocksource based on scheduling information
 	  exported by the sinfo API.
 
+config MUEN_CLKEVT
+	bool "Muen clockevent driver"
+	depends on MUEN_SINFO
+	default n
+	help
+	  This driver implements a clockevent timer using the timed event mechanism
+	  provided by the Muen SK.
+
 endmenu
