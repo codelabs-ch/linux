@@ -16,4 +16,12 @@ config MUEN_SINFO
 	  The Muen subject information driver provides data about the execution
 	  environment to other Muen modules.
 
+config MUEN_CLKSRC
+	bool "Muen clocksource driver"
+	depends on MUEN_SINFO
+	default n
+	help
+	  This driver implements a clocksource based on scheduling information
+	  exported by the sinfo API.
+
 endmenu
