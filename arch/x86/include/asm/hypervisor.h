@@ -28,6 +28,7 @@ enum x86_hypervisor_type {
 	X86_HYPER_XEN_PV,
 	X86_HYPER_XEN_HVM,
 	X86_HYPER_KVM,
+	X86_HYPER_MUEN,
 };
 
 #ifdef CONFIG_HYPERVISOR_GUEST
@@ -54,6 +55,7 @@ struct hypervisor_x86 {
 };
 
 extern enum x86_hypervisor_type x86_hyper_type;
+
 extern void init_hypervisor_platform(void);
 static inline bool hypervisor_is_type(enum x86_hypervisor_type type)
 {
