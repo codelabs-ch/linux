@@ -145,6 +145,8 @@ source "drivers/hv/Kconfig"
 
 source "drivers/xen/Kconfig"
 
+source "drivers/muen/Kconfig"
+
 source "drivers/greybus/Kconfig"
 
 source "drivers/comedi/Kconfig"
