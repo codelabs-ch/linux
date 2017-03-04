@@ -1,0 +1,11 @@
+menu "Muen driver support"
+
+config MUEN_CHANNEL
+	bool "Muen shared memory channels"
+	depends on MUEN_GUEST
+	help
+	  Muen shared memory channels are an implementation of the SHMStream
+	  Version 2 IPC protocol (shmstream). This option is selected by any
+	  driver that uses Muen shared memory channels.
+
+endmenu
