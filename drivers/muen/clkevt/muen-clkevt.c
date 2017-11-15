@@ -78,7 +78,7 @@ static int __init muen_ce_init(void)
 	return 0;
 }
 
-arch_initcall(muen_ce_init);
+core_initcall(muen_ce_init);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
