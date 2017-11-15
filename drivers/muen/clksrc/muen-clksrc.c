@@ -59,7 +59,7 @@ static int __init muen_cs_init(void)
 	return 0;
 }
 
-console_initcall(muen_cs_init);
+core_initcall(muen_cs_init);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
