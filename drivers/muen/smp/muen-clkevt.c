@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/clockchips.h>
+#include <linux/percpu.h>
 #include <muen/sinfo.h>
 
 #define TIMER_EVENT 31
@@ -28,19 +29,7 @@ struct subject_timed_event_type {
 	unsigned int event_nr :5;
 } __packed;
 
-static struct subject_timed_event_type *timer_page;
-
-static irqreturn_t handle_timer_interrupt(int irq, void *dev_id)
-{
-	global_clock_event->event_handler(global_clock_event);
-	return IRQ_HANDLED;
-}
-
-static struct irqaction irq0  = {
-	.handler = handle_timer_interrupt,
-	.flags = IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
-	.name = "muen-timer"
-};
+static struct subject_timed_event_type *timer_page = NULL;
 
 static int muen_timer_shutdown(struct clock_event_device *const evt)
 {
@@ -63,39 +52,61 @@ static struct clock_event_device muen_clockevent = {
 	.set_next_event		= muen_timer_next_event,
 	.set_state_shutdown	= muen_timer_shutdown,
 	.rating			= INT_MAX,
+	.irq			= -1,
 };
 
-static int __init muen_ce_init(void)
+static DEFINE_PER_CPU(struct clock_event_device, muen_events);
+
+void muen_setup_timer(void)
 {
+	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
 	const struct muen_resource_type *const
 		region = muen_get_resource("timed_event", MUEN_RES_MEMORY);
 
 	if (!region) {
-		pr_warn("Unable to retrieve Muen timed event region\n");
-		return -1;
+		pr_warn("muen-smp: Unable to retrieve Muen timed event region\n");
+		return;
 	}
-	pr_info("Using Muen timed event region at address 0x%llx\n",
+
+	pr_info("muen-smp: Using Muen timed event region at address 0x%llx\n",
 		region->data.mem.address);
-
-	timer_page = (struct subject_timed_event_type *)ioremap_cache
-	    (region->data.mem.address, region->data.mem.size);
-
+	if (!timer_page)
+		timer_page = (struct subject_timed_event_type *)ioremap_cache
+			(region->data.mem.address, region->data.mem.size);
 	timer_page->event_nr = TIMER_EVENT;
 
-	global_clock_event = &muen_clockevent;
+	pr_info("muen-smp: Setup timer for CPU#%u: %p\n",
+			smp_processor_id(), evt);
 
-	setup_irq(0, &irq0);
+	memcpy(evt, &muen_clockevent, sizeof(*evt));
 
-	pr_info("Registering clockevent device muen-clkevt\n");
-	muen_clockevent.cpumask = cpu_online_mask;
-	clockevents_config_and_register(&muen_clockevent,
-					muen_get_tsc_khz() * 1000, 1, UINT_MAX);
-	return 0;
+	evt->cpumask = cpumask_of(smp_processor_id());
+
+	clockevents_config_and_register(evt,
+			muen_get_tsc_khz() * 1000, 1, UINT_MAX);
 }
 
-core_initcall(muen_ce_init);
+static void local_timer_interrupt(void)
+{
+	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
 
-MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
-MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
-MODULE_DESCRIPTION("Muen clockevent driver");
-MODULE_LICENSE("GPL");
+	if (!evt->event_handler) {
+		pr_warning("muen-smp: Spurious timer interrupt on cpu %d\n",
+			   smp_processor_id());
+		return;
+	}
+	inc_irq_stat(apic_timer_irqs);
+
+	evt->event_handler(evt);
+}
+
+__visible void __irq_entry smp_apic_timer_interrupt_muen(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	entering_ack_irq();
+	local_timer_interrupt();
+	exiting_irq();
+
+	set_irq_regs(old_regs);
+}
