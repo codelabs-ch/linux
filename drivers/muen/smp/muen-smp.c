@@ -120,6 +120,45 @@ static void muen_setup_events(void)
 	}
 }
 
+/* IRQ affinity handling */
+static DEFINE_SPINLOCK(irq_list_lock);
+static struct list_head irq_list = LIST_HEAD_INIT(irq_list);
+
+struct muen_irq_affinity {
+	uint8_t cpu;
+	struct muen_device_type conf;
+	struct list_head list;
+};
+
+static bool muen_register_dev_irqs(const struct muen_resource_type *const res, void *data)
+{
+	const unsigned int this_cpu = smp_processor_id();
+	struct muen_irq_affinity *entry;
+
+	if (res->kind != MUEN_RES_DEVICE || !res->data.dev.ir_count)
+		return true;
+
+	entry = kzalloc(sizeof(struct muen_irq_affinity), GFP_ATOMIC);
+	BUG_ON(!entry);
+	entry->conf = res->data.dev;
+	entry->cpu = this_cpu;
+
+	pr_info("muen-smp: CPU#%u -> dev 0x%u, IRQ start %u, count %u\n",
+		entry->cpu, entry->conf.sid, entry->conf.irq_start,
+		entry->conf.ir_count);
+
+	spin_lock(&irq_list_lock);
+	list_add_tail(&entry->list, &irq_list);
+	spin_unlock(&irq_list_lock);
+
+	return true;
+}
+
+static void muen_register_irqs(void)
+{
+	muen_for_each_resource(muen_register_dev_irqs, NULL);
+}
+
 static void muen_smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = &cpu_data(id);
@@ -205,6 +244,7 @@ static void notrace start_secondary(void *unused)
 	wmb();
 	muen_setup_events();
 	muen_setup_timer();
+	muen_register_irqs();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
@@ -324,6 +364,7 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 
 	muen_setup_events();
 	muen_setup_timer();
+	muen_register_irqs();
 }
 
 void muen_smp_send_call_function_single_ipi(int cpu)
@@ -345,6 +386,20 @@ void muen_smp_send_reschedule(int cpu)
 {
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
 	kvm_hypercall0(cfg->reschedule[cpu]);
+}
+
+const struct muen_device_type *const
+muen_smp_get_irq_affinity(const uint16_t sid, unsigned int *cpu)
+{
+	struct muen_irq_affinity *entry;
+
+	list_for_each_entry(entry, &irq_list, list) {
+		if (entry->conf.sid == sid) {
+			*cpu = entry->cpu;
+			return &entry->conf;
+		}
+	}
+	return NULL;
 }
 
 void __init muen_smp_init(void)
