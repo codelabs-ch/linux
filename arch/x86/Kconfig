@@ -875,6 +875,7 @@ config MUEN_GUEST
 	select MUEN_SINFO
 	select MUEN_PCI_MSI
 	select MUEN_CLKSRC
+	select MUEN_SMP
 	default n
 	---help---
 	  This option enables support for guests running on the Muen
