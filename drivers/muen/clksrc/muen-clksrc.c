@@ -32,11 +32,6 @@ static u64 muen_cs_read(struct clocksource *arg)
 	return counter;
 }
 
-unsigned long calibrate_delay_is_known(void)
-{
-	return muen_get_tsc_khz() * 1000 / HZ;
-}
-
 static struct clocksource muen_cs = {
 	.name	= "muen-clksrc",
 	.rating	= 400,
