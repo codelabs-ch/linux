@@ -29,6 +29,8 @@
 #include <asm/i8259.h>
 #include <asm/uv/uv.h>
 
+#include <muen/sinfo.h>
+
 unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
 
@@ -1551,7 +1553,16 @@ void __init tsc_init(void)
 	detect_art();
 }
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP)
+#if defined(CONFIG_MUEN_GUEST)
+
+unsigned long calibrate_delay_is_known(void)
+{
+	return muen_get_tsc_khz() * 1000 / HZ;
+}
+
+#else
+
 /*
  * If we have a constant TSC and are using the TSC for the delay loop,
  * we can skip clock calibration if another cpu in the same socket has already
@@ -1572,4 +1583,6 @@ unsigned long calibrate_delay_is_known(void)
 		return cpu_data(sibling).loops_per_jiffy;
 	return 0;
 }
-#endif
+
+#endif /* CONFIG_MUEN_GUEST */
+#endif /* CONFIG_SMP */
