@@ -955,8 +955,14 @@ apicinterrupt3 REBOOT_VECTOR \
 apicinterrupt3 UV_BAU_MESSAGE \
 	uv_bau_message_intr1 uv_bau_message_interrupt
 #endif
+
+#if defined(CONFIG_MUEN_GUEST)
+apicinterrupt LOCAL_TIMER_VECTOR \
+	apic_timer_interrupt smp_apic_timer_interrupt_muen
+#else
 apicinterrupt LOCAL_TIMER_VECTOR \
 	apic_timer_interrupt smp_apic_timer_interrupt
+#endif
 apicinterrupt X86_PLATFORM_IPI_VECTOR \
 	x86_platform_ipi smp_x86_platform_ipi
 
