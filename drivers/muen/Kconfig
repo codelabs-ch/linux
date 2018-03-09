@@ -41,4 +41,11 @@ config MUEN_INPUT
 	  This driver implements the Muen virtual input device driver. It
 	  processes keyboard and mouse inputs via a shared memory channel.
 
+config MUEN_SMP
+	bool "Muen SMP support"
+	depends on SMP
+	default n
+	help
+	  SMP support driver for Muen Linux.
+
 endmenu
