@@ -24,6 +24,7 @@
 
 #include <muen/pci.h>
 #include <muen/sinfo.h>
+#include <muen/smp.h>
 
 static void noop(struct irq_data *data) { }
 
@@ -80,7 +81,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 }
 
 static int muen_irq_alloc_descs(struct pci_dev *dev, const unsigned int virq,
-				const unsigned int cnt)
+				const unsigned int cnt, const unsigned int cpu)
 {
 	int i, alloc;
 
@@ -100,8 +101,7 @@ static int muen_irq_alloc_descs(struct pci_dev *dev, const unsigned int virq,
 	}
 
 	for (i = 0; i < cnt; i++)
-		__this_cpu_write(vector_irq[virq + i],
-				 irq_to_desc(dev->irq + i));
+		per_cpu(vector_irq, cpu)[virq + i] = irq_to_desc(dev->irq + i);
 
 	return 0;
 }
@@ -120,9 +120,10 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
 	int ret;
-	unsigned int irq, virq;
+	unsigned int irq, virq, cpu;
 	const uint16_t sid = PCI_DEVID(dev->bus->number, dev->devfn);
-	const struct muen_device_type *const dev_info = muen_get_device(sid);
+	const struct muen_device_type *const
+		dev_info = muen_smp_get_irq_affinity(sid, &cpu);
 
 	/* Multiple vectors only supported for MSI-X */
 	if (nvec > 1 && type == PCI_CAP_ID_MSI) {
@@ -148,7 +149,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	virq = dev_info->irq_start;
 	dev->irq = virq - ISA_IRQ_VECTOR(0);
 	if (dev->irq >= NR_IRQS_LEGACY) {
-		ret = muen_irq_alloc_descs(dev, virq, nvec);
+		ret = muen_irq_alloc_descs(dev, virq, nvec, cpu);
 		if (ret < 0)
 			return ret;
 	}
