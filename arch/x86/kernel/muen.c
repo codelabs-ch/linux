@@ -28,6 +28,7 @@
 
 #include <muen/sinfo.h>
 #include <muen/pci.h>
+#include <muen/smp.h>
 
 static void muen_machine_restart(char *__unused)
 {
@@ -94,6 +95,10 @@ static void __init muen_platform_setup(void)
 	x86_init.irqs.intr_init	= muen_init_IRQ;
 #ifdef CONFIG_MUEN_PCI_MSI
 	x86_init.pci.arch_init	= muen_msi_init;
+#endif
+
+#ifdef CONFIG_MUEN_SMP
+	muen_smp_init();
 #endif
 
 	null_legacy_pic.nr_legacy_irqs = NR_IRQS_LEGACY;
