@@ -22,6 +22,7 @@
 #include "hvc_console.h"
 
 #define HVC_MUEN_COOKIE	0x4d75656e	/* "Muen" in hex */
+#define CHANNEL_NAME	"virtual_console"
 
 static struct hvc_struct *hvc_muen_dev;
 
@@ -80,25 +81,32 @@ module_exit(hvc_muen_exit);
 
 static int __init hvc_muen_console_init(void)
 {
-	struct muen_channel_info channel;
 	const u64 epoch = muen_get_sched_start();
 
-	if (!muen_get_channel_info("virtual_console", &channel)) {
-		pr_err("hvc_muen: Unable to retrieve console channel\n");
+	const struct muen_resource_type *const
+		region = muen_get_resource(CHANNEL_NAME, MUEN_RES_MEMORY);
+	const struct muen_resource_type *const
+		evt = muen_get_resource(CHANNEL_NAME, MUEN_RES_EVENT);
+
+	if (!region) {
+		pr_err("hvc_muen: Unable to retrieve console channel %s\n",
+		       CHANNEL_NAME);
 		return -EINVAL;
 	}
 
-	if (!channel.has_event) {
-		pr_err("hvc_muen: Unable to retrieve event number for console channel\n");
+	if (!evt) {
+		pr_err("hvc_muen: Unable to retrieve event number for console channel %s\n",
+		       CHANNEL_NAME);
 		return -EINVAL;
 	}
 
-	event_number = channel.event_number;
-	channel_size = channel.size;
+	event_number = evt->data.number;
+	channel_size = region->data.mem.size;
 	pr_info("hvc_muen: Channel @ 0x%llx, size 0x%llx, event %d, epoch 0x%llx\n",
-		channel.address, channel_size, event_number, epoch);
+		region->data.mem.address, region->data.mem.size, event_number,
+		epoch);
 
-	channel_out = (struct muchannel *)__va(channel.address);
+	channel_out = (struct muchannel *)__va(region->data.mem.address);
 
 	muen_channel_init_writer(channel_out, 1, 1, channel_size,
 				 epoch);
