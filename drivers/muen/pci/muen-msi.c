@@ -121,8 +121,8 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	struct msi_desc *msidesc;
 	int ret;
 	unsigned int irq, virq;
-	uint16_t sid;
-	struct muen_dev_info dev_info;
+	const uint16_t sid = PCI_DEVID(dev->bus->number, dev->devfn);
+	const struct muen_device_type *const dev_info = muen_get_device(sid);
 
 	/* Multiple vectors only supported for MSI-X */
 	if (nvec > 1 && type == PCI_CAP_ID_MSI) {
@@ -130,22 +130,22 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 	}
 
-	sid = PCI_DEVID(dev->bus->number, dev->devfn);
-	if (!muen_get_dev_info(sid, &dev_info)) {
-		dev_err(&dev->dev, "Error retrieving Muen device info\n");
+	if (!dev_info) {
+		dev_err(&dev->dev, "Error retrieving Muen device info for SID 0x%x\n",
+			sid);
 		return -EINVAL;
 	}
-	if (nvec > dev_info.ir_count) {
+	if (nvec > dev_info->ir_count) {
 		dev_err(&dev->dev, "Device requests more IRQs than allowed by policy (%d > %d)\n",
-			nvec, dev_info.ir_count);
+			nvec, dev_info->ir_count);
 		return -EINVAL;
 	}
-	if (!dev_info.msi_capable) {
+	if (!(dev_info->flags & DEV_MSI_FLAG)) {
 		dev_err(&dev->dev, "Device not configured for MSI\n");
 		return -EINVAL;
 	}
 
-	virq = dev_info.irq_start;
+	virq = dev_info->irq_start;
 	dev->irq = virq - ISA_IRQ_VECTOR(0);
 	if (dev->irq >= NR_IRQS_LEGACY) {
 		ret = muen_irq_alloc_descs(dev, virq, nvec);
@@ -156,7 +156,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	irq = dev->irq;
 	list_for_each_entry(msidesc, dev_to_msi_list(&dev->dev), list) {
 		ret = muen_setup_msi_irq(dev, msidesc, irq,
-					 dev_info.irte_start);
+					 dev_info->irte_start);
 		if (ret < 0)
 			goto error;
 
