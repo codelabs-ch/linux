@@ -1,10 +1,48 @@
+/*
+ * Copyright (C) 2014-2018  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2014-2018  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *   * Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ *
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #ifndef MUEN_SINFO_H
 #define MUEN_SINFO_H
 
 #include <linux/init.h>
 
-#define MAX_NAME_LENGTH	63
-#define HASH_LENGTH	32
+#define MUEN_SUBJECT_INFO_MAGIC	0x02006f666e69756dULL
+
+#define MAX_RESOURCE_COUNT	255
+#define MAX_NAME_LENGTH		63
+#define HASH_LENGTH		32
+#define NO_PATTERN		256
+
+#define MEM_WRITABLE_FLAG	(1 << 0)
+#define MEM_EXECUTABLE_FLAG	(1 << 1)
+#define MEM_CHANNEL_FLAG	(1 << 2)
+
+#define DEV_MSI_FLAG		(1 << 0)
 
 /*
  * Muen subject information API.
@@ -13,42 +51,73 @@
  * of a Linux subject running on the Muen Separation Kernel.
  */
 
-/* Structure holding information about a memory region */
-enum muen_content_type {
+/* Resource name */
+struct muen_name_type {
+	uint8_t length;
+	char data[MAX_NAME_LENGTH];
+	uint8_t null_term;
+} __packed;
+
+/* Known memory contents */
+enum muen_content_kind {
 	MUEN_CONTENT_UNINITIALIZED, MUEN_CONTENT_FILL, MUEN_CONTENT_FILE
 };
 
-struct muen_memregion_info {
-	char name[MAX_NAME_LENGTH + 1];
-	enum muen_content_type content;
+/* Structure holding information about a memory region */
+struct muen_memregion_type {
+	enum muen_content_kind content;
 	uint64_t address;
 	uint64_t size;
-	bool writable;
-	bool executable;
 	uint8_t hash[HASH_LENGTH];
+	uint8_t flags;
 	uint16_t pattern;
-};
+	char padding[1];
+} __packed;
 
-/* Structure holding information about a Muen channel */
-struct muen_channel_info {
-	char name[MAX_NAME_LENGTH + 1];
-	uint64_t address;
-	uint64_t size;
-	uint8_t event_number;
-	uint8_t vector;
-	bool writable;
-	bool has_event;
-	bool has_vector;
-};
+/* Required for explicit padding */
+#define largest_variant_size sizeof(struct muen_memregion_type)
+#define device_type_size 7
 
-/* Structure holding information about PCI devices */
-struct muen_dev_info {
+/* Structure holding information about a PCI device */
+struct muen_device_type {
 	uint16_t sid;
 	uint16_t irte_start;
 	uint8_t irq_start;
 	uint8_t ir_count;
-	bool msi_capable;
+	uint8_t flags;
+	char padding[largest_variant_size - device_type_size];
+} __packed;
+
+/* Currently known resource types */
+enum muen_resource_kind {
+	MUEN_RES_NONE, MUEN_RES_MEMORY, MUEN_RES_EVENT, MUEN_RES_VECTOR,
+	MUEN_RES_DEVICE
 };
+
+/* Resource data depending on the kind of resource */
+union muen_resource_data {
+	struct muen_memregion_type mem;
+	struct muen_device_type dev;
+	uint8_t number;
+};
+
+/* Exported resource with associated name */
+struct muen_resource_type {
+	enum muen_resource_kind kind;
+	struct muen_name_type name;
+	char padding[3];
+	union muen_resource_data data;
+} __packed;
+
+/* Muen subject information (sinfo) structure */
+struct subject_info_type {
+	uint64_t magic;
+	uint32_t tsc_khz;
+	struct muen_name_type name;
+	uint16_t resource_count;
+	char padding[1];
+	struct muen_resource_type resources[MAX_RESOURCE_COUNT];
+} __packed;
 
 /*
  * Initialize Muen subject info data for early use when ioremap is not yet
@@ -66,69 +135,41 @@ bool muen_check_magic(void);
  *
  * The function returns NULL if the subject name cannot be retrieved.
  */
-const char * const muen_get_subject_name(void);
+const char *const muen_get_subject_name(void);
 
 /*
- * Return information for a channel given by name.
+ * Return resource with given name and kind.
  *
- * If no channel with given name exists, False is returned. The event_number
- * and vector parameters are only valid if indicated by the has_[event|vector]
- * struct members.
+ * If no resource with given name exists, null is returned.
  */
-bool muen_get_channel_info(const char * const name,
-			   struct muen_channel_info *channel);
-
-/*
- * Return information for a memory region given by name.
- *
- * If no memory region with given name exists, False is returned.
- */
-bool muen_get_memregion_info(const char * const name,
-			     struct muen_memregion_info *memregion);
+const struct muen_resource_type *const
+muen_get_resource(const char *const name, enum muen_resource_kind kind);
 
 /*
  * Return information for PCI device with given SID.
  *
- * The function returns false if no device information for the specified device
+ * The function returns null if no device information for the specified device
  * exists.
  */
-bool muen_get_dev_info(const uint16_t sid, struct muen_dev_info *dev);
+const struct muen_device_type *const muen_get_device(const uint16_t sid);
 
 /*
- * Channel callback.
+ * Resource callback.
  *
- * Used in the muen_for_each_channel function. The optional void data pointer
+ * Used in the muen_for_each_resource function. The optional void data pointer
  * can be used to pass additional data.
  */
-typedef bool (*channel_cb)(const struct muen_channel_info * const channel,
-		void *data);
+typedef bool (*resource_cb)(const struct muen_resource_type *const res,
+			    void *data);
 
 /*
- * Invoke given callback function for each available channel.
+ * Invoke given callback function for each available resource.
  *
- * Channel information and the optional data argument are passed to each
+ * Resource information and the optional data argument are passed to each
  * invocation of the callback. If a callback invocation returns false,
  * processing is aborted and false is returned to the caller.
  */
-bool muen_for_each_channel(channel_cb func, void *data);
-
-/*
- * Memory region callback.
- *
- * Used in the muen_for_each_memregion function. The optional void data pointer
- * can be used to pass additional data.
- */
-typedef bool (*memregion_cb)(const struct muen_memregion_info * const memregion,
-		void *data);
-
-/*
- * Invoke given callback function for each available memory region.
- *
- * Memory region information and the optional data argument are passed to each
- * invocation of the callback. If a callback invocation returns false,
- * processing is aborted and false is returned to the caller.
- */
-bool muen_for_each_memregion(memregion_cb func, void *data);
+bool muen_for_each_resource(resource_cb func, void *data);
 
 /*
  * Return TSC tick rate in kHz.
