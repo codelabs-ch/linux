@@ -67,17 +67,18 @@ static struct clock_event_device muen_clockevent = {
 
 static int __init muen_ce_init(void)
 {
-	struct muen_memregion_info region;
+	const struct muen_resource_type *const
+		region = muen_get_resource("timed_event", MUEN_RES_MEMORY);
 
-	if (!muen_get_memregion_info("timed_event", &region)) {
+	if (!region) {
 		pr_warn("Unable to retrieve Muen timed event region\n");
 		return -1;
 	}
 	pr_info("Using Muen timed event region at address 0x%llx\n",
-		region.address);
+		region->data.mem.address);
 
 	timer_page = (struct subject_timed_event_type *)ioremap_cache
-	    (region.address, region.size);
+	    (region->data.mem.address, region->data.mem.size);
 
 	timer_page->event_nr = TIMER_EVENT;
 
