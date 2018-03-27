@@ -73,11 +73,11 @@ static bool log_channel(const struct muen_channel_info * const channel,
 
 uint8_t no_hash[HASH_LENGTH] = {0};
 
-static const char * const content_names[] = {
+static const char *const content_names[] = {
 	"uninitialized", "fill", "file",
 };
 
-static bool hash_available(const uint8_t * const first)
+static bool hash_available(const uint8_t *const first)
 {
 	return memcmp(first, no_hash, HASH_LENGTH) != 0;
 }
@@ -172,7 +172,7 @@ bool muen_check_magic(void)
 }
 EXPORT_SYMBOL(muen_check_magic);
 
-const char * const muen_get_subject_name(void)
+const char *const muen_get_subject_name(void)
 {
 	if (!muen_check_magic())
 		return NULL;
