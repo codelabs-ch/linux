@@ -32,6 +32,6 @@ struct muchannel {
 /*
  * Returns True if the channel is currently active.
  */
-bool muen_channel_is_active(const struct muchannel * const channel);
+bool muen_channel_is_active(const struct muchannel *const channel);
 
 #endif /* MUEN_CHANNEL_H */
