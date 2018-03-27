@@ -158,18 +158,24 @@ static struct resource muen_input_res = {
 
 static int __init muen_input_init(void)
 {
-	struct muen_channel_info channel;
 	struct muen_input_event ev;
 	uint8_t irq_number;
 	int i, error;
 
-	if (!muen_get_channel_info(input_channel_name, &channel)) {
+	const struct muen_resource_type *const
+	       region = muen_get_resource(input_channel_name,
+					  MUEN_RES_MEMORY);
+	const struct muen_resource_type *const
+		vector = muen_get_resource(input_channel_name,
+					   MUEN_RES_VECTOR);
+
+	if (!region) {
 		pr_err("muen-input: Unable to retrieve input channel '%s'\n",
 		       input_channel_name);
 		return -EINVAL;
 	}
 
-	if (!channel.has_vector) {
+	if (!vector) {
 		pr_err("muen-input: Unable to retrieve vector for input channel '%s'\n",
 		       input_channel_name);
 		return -EINVAL;
@@ -179,15 +185,16 @@ static int __init muen_input_init(void)
 	if (!muen_input)
 		return -ENOMEM;
 
-	irq_number = channel.vector - ISA_IRQ_VECTOR(0);
+	irq_number = vector->data.number - ISA_IRQ_VECTOR(0);
 	pr_info("muen-input: Using input channel '%s' at address 0x%llx, IRQ %d\n",
-		input_channel_name, channel.address, irq_number);
+		input_channel_name, region->data.mem.address, irq_number);
 
 	muen_input_res.start = irq_number;
 	muen_input_res.end   = irq_number;
 
-	muen_input->channel = (struct muchannel *)ioremap_cache(channel.address,
-								channel.size);
+	muen_input->channel = (struct muchannel *)
+		ioremap_cache(region->data.mem.address,
+			      region->data.mem.size);
 
 	muen_input->pdev = platform_device_register_simple("muen-input", -1,
 							   &muen_input_res, 1);
