@@ -17,14 +17,67 @@
 
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/kvm_para.h>
+#include <linux/pm.h>
 
 #include <asm/i8259.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
 #include <asm/cpufeature.h>
+#include <asm/reboot.h>
 
 #include <muen/sinfo.h>
 #include <muen/pci.h>
+
+static void muen_machine_restart(char *__unused)
+{
+	const struct muen_resource_type *const
+		event = muen_get_resource("reboot",	MUEN_RES_EVENT);
+
+	if (!event) {
+		pr_warn("muen: No reboot event, halting CPU\n");
+		stop_this_cpu(NULL);
+	}
+	kvm_hypercall0(event->data.number);
+}
+
+static void muen_machine_emergency_restart(void)
+{
+	muen_machine_restart(NULL);
+}
+
+static void muen_machine_halt(void)
+{
+	const struct muen_resource_type *const
+		event = muen_get_resource("poweroff", MUEN_RES_EVENT);
+
+	if (!event) {
+		pr_warn("muen: No poweroff event, halting CPU\n");
+		stop_this_cpu(NULL);
+	}
+	kvm_hypercall0(event->data.number);
+}
+
+static void muen_machine_power_off(void)
+{
+	if (pm_power_off)
+		pm_power_off();
+	muen_machine_halt();
+}
+
+static void muen_machine_crash_shutdown(struct pt_regs *regs)
+{
+	muen_machine_halt();
+}
+
+static const struct machine_ops muen_machine_ops __initconst = {
+	.restart		= muen_machine_restart,
+	.halt			= muen_machine_halt,
+	.power_off		= muen_machine_power_off,
+	.shutdown		= muen_machine_halt,
+	.crash_shutdown		= muen_machine_crash_shutdown,
+	.emergency_restart	= muen_machine_emergency_restart,
+};
 
 static int muen_pic_probe(void) { return NR_IRQS_LEGACY; }
 
@@ -46,6 +99,8 @@ static void __init muen_platform_setup(void)
 	null_legacy_pic.nr_legacy_irqs = NR_IRQS_LEGACY;
 	null_legacy_pic.probe          = muen_pic_probe;
 	legacy_pic = &null_legacy_pic;
+
+	machine_ops = muen_machine_ops;
 }
 
 static uint32_t __init muen_platform(void)
