@@ -126,6 +126,12 @@ struct subject_info_type {
 void __init muen_sinfo_early_init(void);
 
 /*
+ * Return true if both names are equal.
+ */
+bool muen_names_equal(const struct muen_name_type *const n1,
+		      const char *const n2);
+
+/*
  * Check Muen sinfo Magic.
  */
 bool muen_check_magic(void);
