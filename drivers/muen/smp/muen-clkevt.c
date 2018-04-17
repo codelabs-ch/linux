@@ -22,8 +22,6 @@
 #include <linux/percpu.h>
 #include <muen/sinfo.h>
 
-#define TIMER_EVENT 31
-
 struct subject_timed_event_type {
 	uint64_t tsc_trigger;
 	unsigned int event_nr :5;
@@ -63,18 +61,24 @@ void muen_setup_timer(void)
 
 	const struct muen_resource_type *const
 		region = muen_get_resource("timed_event", MUEN_RES_MEMORY);
+	const struct muen_resource_type *const
+		timer_evt = muen_get_resource("timer", MUEN_RES_EVENT);
 
 	if (!region) {
 		pr_warn("muen-smp: Unable to retrieve Muen timed event region\n");
 		return;
 	}
+	if (!timer_evt) {
+		pr_warn("muen-smp: Unable to retrieve Muen timer event\n");
+		return;
+	}
 
-	pr_info("muen-smp: Using Muen timed event region at address 0x%llx\n",
-		region->data.mem.address);
+	pr_info("muen-smp: Using timed event region at address 0x%llx with event %u\n",
+		region->data.mem.address, timer_evt->data.number);
 	if (!timer_page)
 		timer_page = (struct subject_timed_event_type *)ioremap_cache
 			(region->data.mem.address, region->data.mem.size);
-	timer_page->event_nr = TIMER_EVENT;
+	timer_page->event_nr = timer_evt->data.number;
 
 	pr_info("muen-smp: Setup timer for CPU#%u: %p\n",
 			smp_processor_id(), evt);
