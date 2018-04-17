@@ -29,7 +29,7 @@ struct subject_timed_event_type {
 	unsigned int event_nr :5;
 } __packed;
 
-static struct subject_timed_event_type *timer_page = NULL;
+static struct subject_timed_event_type *timer_page;
 
 static int muen_timer_shutdown(struct clock_event_device *const evt)
 {
@@ -60,6 +60,7 @@ static DEFINE_PER_CPU(struct clock_event_device, muen_events);
 void muen_setup_timer(void)
 {
 	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
+
 	const struct muen_resource_type *const
 		region = muen_get_resource("timed_event", MUEN_RES_MEMORY);
 
@@ -91,8 +92,8 @@ static void local_timer_interrupt(void)
 	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
 
 	if (!evt->event_handler) {
-		pr_warning("muen-smp: Spurious timer interrupt on cpu %d\n",
-			   smp_processor_id());
+		pr_warn("muen-smp: Spurious timer interrupt on cpu %d\n",
+			smp_processor_id());
 		return;
 	}
 	inc_irq_stat(apic_timer_irqs);

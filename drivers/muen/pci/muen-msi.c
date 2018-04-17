@@ -122,6 +122,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int ret;
 	unsigned int irq, virq, cpu;
 	const uint16_t sid = PCI_DEVID(dev->bus->number, dev->devfn);
+
 	const struct muen_device_type *const
 		dev_info = muen_smp_get_irq_affinity(sid, &cpu);
 
