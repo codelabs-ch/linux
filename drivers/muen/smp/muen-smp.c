@@ -73,13 +73,6 @@ static void muen_setup_events(void)
 
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
 
-	/* In the non-SMP case, verify timer vector only */
-	if (nr_cpu_ids == 1) {
-		new_name(&n, "timer");
-		muen_verify_vec(n.data, LOCAL_TIMER_VECTOR);
-		return;
-	}
-
 	cfg->call_func = kcalloc(nr_cpu_ids, sizeof(uint8_t), GFP_ATOMIC);
 	BUG_ON(!cfg->call_func);
 	cfg->reschedule = kcalloc(nr_cpu_ids, sizeof(uint8_t), GFP_ATOMIC);
@@ -393,12 +386,24 @@ out:
 static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int cpu;
+	struct muen_name_type n;
 
 	smp_store_boot_cpu_info();
 	set_cpu_sibling_map(0);
 
 	pr_info("CPU0: ");
 	print_cpu_info(&cpu_data(0));
+
+	muen_setup_timer();
+	muen_register_resources();
+
+	/* In the non-SMP case, verify timer vector only */
+	if (nr_cpu_ids == 1) {
+		new_name(&n, "timer");
+		muen_verify_vec(n.data, LOCAL_TIMER_VECTOR);
+		return;
+	}
+
 	pr_info("muen-smp: Trampoline address is 0x%x\n",
 		real_mode_header->trampoline_start);
 
@@ -411,8 +416,6 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 	BUG_ON(!bsp_ap_start);
 
 	muen_setup_events();
-	muen_setup_timer();
-	muen_register_resources();
 }
 
 void muen_smp_send_call_function_single_ipi(int cpu)
