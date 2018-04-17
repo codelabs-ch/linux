@@ -24,6 +24,7 @@
 
 #include <muen/reader.h>
 #include <muen/sinfo.h>
+#include <muen/smp.h>
 
 #define MUEN_PROTO_INPUT 0x9a0a8679dbc22dcbULL
 
@@ -159,15 +160,12 @@ static struct resource muen_input_res = {
 static int __init muen_input_init(void)
 {
 	struct muen_input_event ev;
-	uint8_t irq_number;
+	uint8_t irq_number, evt_vec;
 	int i, error;
 
 	const struct muen_resource_type *const
 	       region = muen_get_resource(input_channel_name,
 					  MUEN_RES_MEMORY);
-	const struct muen_resource_type *const
-		vector = muen_get_resource(input_channel_name,
-					   MUEN_RES_VECTOR);
 
 	if (!region) {
 		pr_err("muen-input: Unable to retrieve input channel '%s'\n",
@@ -175,7 +173,7 @@ static int __init muen_input_init(void)
 		return -EINVAL;
 	}
 
-	if (!vector) {
+	if (!muen_smp_get_event_vector(input_channel_name, &evt_vec)) {
 		pr_err("muen-input: Unable to retrieve vector for input channel '%s'\n",
 		       input_channel_name);
 		return -EINVAL;
@@ -185,7 +183,7 @@ static int __init muen_input_init(void)
 	if (!muen_input)
 		return -ENOMEM;
 
-	irq_number = vector->data.number - ISA_IRQ_VECTOR(0);
+	irq_number = evt_vec - ISA_IRQ_VECTOR(0);
 	pr_info("muen-input: Using input channel '%s' at address 0x%llx, IRQ %d\n",
 		input_channel_name, region->data.mem.address, irq_number);
 
