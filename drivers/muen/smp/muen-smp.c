@@ -120,43 +120,87 @@ static void muen_setup_events(void)
 	}
 }
 
-/* IRQ affinity handling */
-static DEFINE_SPINLOCK(irq_list_lock);
-static struct list_head irq_list = LIST_HEAD_INIT(irq_list);
+/* CPU resource affinity handling */
+static DEFINE_SPINLOCK(affinity_list_lock);
+static struct list_head affinity_list = LIST_HEAD_INIT(affinity_list);
 
-struct muen_irq_affinity {
+struct muen_cpu_affinity {
 	uint8_t cpu;
-	struct muen_device_type conf;
+	struct muen_resource_type res;
 	struct list_head list;
 };
 
-static bool muen_register_dev_irqs(const struct muen_resource_type *const res, void *data)
+/* Add new entry to CPU affinity list */
+static void cpu_list_add_entry(const struct muen_resource_type *const res)
 {
 	const unsigned int this_cpu = smp_processor_id();
-	struct muen_irq_affinity *entry;
+	struct muen_cpu_affinity *entry;
+	entry = kzalloc(sizeof(struct muen_cpu_affinity), GFP_ATOMIC);
 
+	BUG_ON(!entry);
+	entry->res = *res;
+	entry->cpu = this_cpu;
+
+	spin_lock(&affinity_list_lock);
+	list_add_tail(&entry->list, &affinity_list);
+	spin_unlock(&affinity_list_lock);
+}
+
+/*
+ * Check if the given resource is already present in the list. If it is, remove
+ * it and return true. Return false if not.
+ */
+static bool cpu_list_remove_if_present(const struct muen_resource_type *const res)
+{
+	struct muen_cpu_affinity *entry;
+	bool result = false;
+
+	spin_lock(&affinity_list_lock);
+	list_for_each_entry(entry, &affinity_list, list) {
+		if (entry->res.kind == res->kind
+				&& muen_names_equal(&entry->res.name,
+						    res->name.data)) {
+			list_del(&entry->list);
+			kfree(entry);
+			result = true;
+			break;
+		}
+	}
+	spin_unlock(&affinity_list_lock);
+	return result;
+}
+
+/*
+ * Register device IRQs in CPU affinity list. IRQs are guaranteed to be unique
+ * because they can only be assigned to one CPU.
+ */
+static bool
+cpu_list_register_dev_irqs(const struct muen_resource_type *const res, void *data)
+{
 	if (res->kind != MUEN_RES_DEVICE || !res->data.dev.ir_count)
 		return true;
 
-	entry = kzalloc(sizeof(struct muen_irq_affinity), GFP_ATOMIC);
-	BUG_ON(!entry);
-	entry->conf = res->data.dev;
-	entry->cpu = this_cpu;
+	cpu_list_add_entry(res);
+	return true;
+}
 
-	pr_info("muen-smp: CPU#%u -> dev 0x%u, IRQ start %u, count %u\n",
-		entry->cpu, entry->conf.sid, entry->conf.irq_start,
-		entry->conf.ir_count);
+/* Register unique event vectors in CPU affinity list. */
+static bool
+cpu_list_register_unique_vecs(const struct muen_resource_type *const res, void *data)
+{
+	if (res->kind != MUEN_RES_VECTOR)
+		return true;
 
-	spin_lock(&irq_list_lock);
-	list_add_tail(&entry->list, &irq_list);
-	spin_unlock(&irq_list_lock);
+	if (!cpu_list_remove_if_present(res))
+		cpu_list_add_entry(res);
 
 	return true;
 }
 
-static void muen_register_irqs(void)
+static void muen_register_resources(void)
 {
-	muen_for_each_resource(muen_register_dev_irqs, NULL);
+	muen_for_each_resource(cpu_list_register_dev_irqs, NULL);
+	muen_for_each_resource(cpu_list_register_unique_vecs, NULL);
 }
 
 static void muen_smp_store_cpu_info(int id)
@@ -244,7 +288,7 @@ static void notrace start_secondary(void *unused)
 	wmb();
 	muen_setup_events();
 	muen_setup_timer();
-	muen_register_irqs();
+	muen_register_resources();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
@@ -364,7 +408,7 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 
 	muen_setup_events();
 	muen_setup_timer();
-	muen_register_irqs();
+	muen_register_resources();
 }
 
 void muen_smp_send_call_function_single_ipi(int cpu)
@@ -391,15 +435,31 @@ void muen_smp_send_reschedule(int cpu)
 const struct muen_device_type *const
 muen_smp_get_irq_affinity(const uint16_t sid, unsigned int *cpu)
 {
-	struct muen_irq_affinity *entry;
+	struct muen_cpu_affinity *entry;
 
-	list_for_each_entry(entry, &irq_list, list) {
-		if (entry->conf.sid == sid) {
+	list_for_each_entry(entry, &affinity_list, list) {
+		if (entry->res.kind == MUEN_RES_DEVICE
+				&& entry->res.data.dev.sid == sid) {
 			*cpu = entry->cpu;
-			return &entry->conf;
+			return &entry->res.data.dev;
 		}
 	}
 	return NULL;
+}
+
+const bool
+muen_smp_get_event_vector(const char *const name, uint8_t *const vector)
+{
+	struct muen_cpu_affinity *entry;
+
+	list_for_each_entry(entry, &affinity_list, list) {
+		if (entry->res.kind == MUEN_RES_VECTOR
+				&& muen_names_equal(&entry->res.name, name)) {
+			*vector = entry->res.data.number;
+			return true;
+		}
+	}
+	return false;
 }
 
 void __init muen_smp_init(void)
