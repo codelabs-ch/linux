@@ -16,4 +16,13 @@ void __init muen_smp_init(void);
 const struct muen_device_type *const
 muen_smp_get_irq_affinity(const uint16_t sid, unsigned int *cpu);
 
+/*
+ * Return event vector with given logical name.
+ *
+ * False is returned if no such event vector exists in the CPU affinity
+ * database.
+ */
+const bool
+muen_smp_get_event_vector(const char *const name, uint8_t *const vector);
+
 #endif /* MUEN_SMP_H */
