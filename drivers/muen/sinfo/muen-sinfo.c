@@ -61,13 +61,6 @@ static bool hash_available(const uint8_t *const first)
 	return memcmp(first, no_hash, HASH_LENGTH) != 0;
 }
 
-static bool names_equal(const struct muen_name_type *const n1,
-			const char *const n2)
-{
-	return n1->length == strlen(n2)
-		&& strncmp(n1->data, n2, n1->length) == 0;
-}
-
 struct iterator {
 	const struct muen_resource_type *res;
 	unsigned int idx;
@@ -144,6 +137,14 @@ static bool log_resource(const struct muen_resource_type *const res, void *data)
 	return true;
 }
 
+bool muen_names_equal(const struct muen_name_type *const n1,
+		      const char *const n2)
+{
+	return n1->length == strlen(n2)
+		&& strncmp(n1->data, n2, n1->length) == 0;
+}
+EXPORT_SYMBOL(muen_names_equal);
+
 bool muen_check_magic(void)
 {
 	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
@@ -171,7 +172,7 @@ muen_get_resource(const char *const name, enum muen_resource_kind kind)
 	struct iterator i = { NULL, 0 };
 
 	while (iterate_resources(&i))
-		if (i.res->kind == kind && names_equal(&i.res->name, name))
+		if (i.res->kind == kind && muen_names_equal(&i.res->name, name))
 			return i.res;
 
 	return NULL;
