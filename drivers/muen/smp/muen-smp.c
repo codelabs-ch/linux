@@ -3,8 +3,8 @@
 #include <linux/delay.h>
 #include <linux/sched/task_stack.h>
 #include <linux/stackprotector.h>
+#include <linux/smp.h>
 
-#include <asm/smp.h>
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
 #include <asm/misc.h>
@@ -19,7 +19,7 @@ static const char *const res_names[] = {
 };
 
 /* BSP AP start event array */
-static uint8_t *bsp_ap_start = NULL;
+static uint8_t *bsp_ap_start;
 
 /* Per-CPU IPI event configuration */
 struct muen_ipi_config {
@@ -46,6 +46,7 @@ static unsigned int muen_get_evt_vec(const char *const name,
 static void muen_verify_vec(const char *const name, const unsigned int ref)
 {
 	const unsigned int vec = muen_get_evt_vec(name, MUEN_RES_VECTOR);
+
 	if (vec != ref) {
 		pr_err("muen-smp: Unexpected vector %u for %s, should be %u\n",
 		       vec, name, ref);
@@ -79,9 +80,9 @@ static void muen_setup_events(void)
 		return;
 	}
 
-	cfg->call_func = kzalloc(nr_cpu_ids * sizeof(uint8_t), GFP_ATOMIC);
+	cfg->call_func = kcalloc(nr_cpu_ids, sizeof(uint8_t), GFP_ATOMIC);
 	BUG_ON(!cfg->call_func);
-	cfg->reschedule = kzalloc(nr_cpu_ids * sizeof(uint8_t), GFP_ATOMIC);
+	cfg->reschedule = kcalloc(nr_cpu_ids, sizeof(uint8_t), GFP_ATOMIC);
 	BUG_ON(!cfg->reschedule);
 
 	for_each_cpu(cpu, cpu_possible_mask) {
@@ -93,7 +94,8 @@ static void muen_setup_events(void)
 
 		if (!this_cpu) {
 			new_name(&n, "smp_signal_sm_%02d", cpu);
-			bsp_ap_start[cpu - 1] = muen_get_evt_vec(n.data, MUEN_RES_EVENT);
+			bsp_ap_start[cpu - 1] = muen_get_evt_vec
+				(n.data, MUEN_RES_EVENT);
 			pr_info("muen-smp: event %s with number %u\n", n.data,
 				bsp_ap_start[cpu - 1]);
 		}
@@ -135,6 +137,7 @@ static void cpu_list_add_entry(const struct muen_resource_type *const res)
 {
 	const unsigned int this_cpu = smp_processor_id();
 	struct muen_cpu_affinity *entry;
+
 	entry = kzalloc(sizeof(struct muen_cpu_affinity), GFP_ATOMIC);
 
 	BUG_ON(!entry);
@@ -150,7 +153,8 @@ static void cpu_list_add_entry(const struct muen_resource_type *const res)
  * Check if the given resource is already present in the list. If it is, remove
  * it and return true. Return false if not.
  */
-static bool cpu_list_remove_if_present(const struct muen_resource_type *const res)
+static bool
+cpu_list_remove_if_present(const struct muen_resource_type *const res)
 {
 	struct muen_cpu_affinity *entry;
 	bool result = false;
@@ -174,8 +178,8 @@ static bool cpu_list_remove_if_present(const struct muen_resource_type *const re
  * Register device IRQs in CPU affinity list. IRQs are guaranteed to be unique
  * because they can only be assigned to one CPU.
  */
-static bool
-cpu_list_register_dev_irqs(const struct muen_resource_type *const res, void *data)
+static bool cpu_list_register_dev_irqs(
+		const struct muen_resource_type *const res, void *data)
 {
 	if (res->kind != MUEN_RES_DEVICE || !res->data.dev.ir_count)
 		return true;
@@ -185,8 +189,8 @@ cpu_list_register_dev_irqs(const struct muen_resource_type *const res, void *dat
 }
 
 /* Register unique event vectors in CPU affinity list. */
-static bool
-cpu_list_register_unique_vecs(const struct muen_resource_type *const res, void *data)
+static bool cpu_list_register_unique_vecs(
+		const struct muen_resource_type *const res, void *data)
 {
 	if (res->kind != MUEN_RES_VECTOR)
 		return true;
@@ -414,6 +418,7 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 void muen_smp_send_call_function_single_ipi(int cpu)
 {
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
+
 	kvm_hypercall0(cfg->call_func[cpu]);
 }
 
@@ -429,6 +434,7 @@ void muen_smp_send_call_function_ipi(const struct cpumask *mask)
 void muen_smp_send_reschedule(int cpu)
 {
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
+
 	kvm_hypercall0(cfg->reschedule[cpu]);
 }
 
