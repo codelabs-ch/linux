@@ -91,7 +91,14 @@ static void __init muen_init_IRQ(void)
 
 static void __init muen_platform_setup(void)
 {
+	unsigned long lpj;
 	setup_clear_cpu_cap(X86_FEATURE_TSC);
+	cpu_khz = muen_get_tsc_khz();
+	tsc_khz = cpu_khz;
+
+	lpj = tsc_khz * 1000;
+	do_div(lpj, HZ);
+	loops_per_jiffy = lpj;
 
 	x86_init.irqs.intr_init	= muen_init_IRQ;
 #ifdef CONFIG_MUEN_PCI
