@@ -404,9 +404,6 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 
-	pr_info("muen-smp: Trampoline address is 0x%x\n",
-		real_mode_header->trampoline_start);
-
 	/* Assume possible CPUs to be present */
 	for_each_possible_cpu(cpu)
 		set_cpu_present(cpu, true);
