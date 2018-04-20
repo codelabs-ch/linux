@@ -90,8 +90,7 @@ static int muen_irq_alloc_descs(struct pci_dev *dev, const unsigned int virq,
 
 	if (alloc < 0) {
 		dev_err(&dev->dev,
-			"Error allocating IRQ desc: No space for %d IRQ(s)\n",
-			cnt);
+			"Error allocating IRQ desc for %d IRQ(s)\n", cnt);
 		return -ENOSPC;
 	} else if (alloc != dev->irq) {
 		dev_err(&dev->dev, "Error allocating IRQ desc: %d != %d\n",
