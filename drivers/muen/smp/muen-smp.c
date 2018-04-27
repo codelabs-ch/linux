@@ -1,13 +1,26 @@
+/*
+ * Copyright (C) 2018  Reto Buerki <reet@codelabs.ch>
+ * Copyright (C) 2018  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
 #include <linux/cpu.h>
 #include <linux/kvm_para.h>
 #include <linux/delay.h>
-#include <linux/sched/task_stack.h>
 #include <linux/stackprotector.h>
 #include <linux/smp.h>
 
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
-#include <asm/misc.h>
 #include <asm/fpu/internal.h>
 
 #include <muen/sinfo.h>
@@ -68,8 +81,8 @@ static void new_name(struct muen_name_type *const n, const char *str, ...)
 static void muen_setup_events(void)
 {
 	unsigned int cpu, vec;
-	unsigned int this_cpu = smp_processor_id();
 	struct muen_name_type n;
+	const unsigned int this_cpu = smp_processor_id();
 
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
 
@@ -144,7 +157,7 @@ static void cpu_list_add_entry(const struct muen_resource_type *const res)
 
 /*
  * Check if the given resource is already present in the list. If it is, remove
- * it and return true. Return false if not.
+ * it and return true. Return false otherwise.
  */
 static bool
 cpu_list_remove_if_present(const struct muen_resource_type *const res)
@@ -174,10 +187,9 @@ cpu_list_remove_if_present(const struct muen_resource_type *const res)
 static bool cpu_list_register_dev_irqs(
 		const struct muen_resource_type *const res, void *data)
 {
-	if (res->kind != MUEN_RES_DEVICE || !res->data.dev.ir_count)
-		return true;
+	if (res->kind == MUEN_RES_DEVICE && res->data.dev.ir_count)
+		cpu_list_add_entry(res);
 
-	cpu_list_add_entry(res);
 	return true;
 }
 
@@ -185,10 +197,7 @@ static bool cpu_list_register_dev_irqs(
 static bool cpu_list_register_unique_vecs(
 		const struct muen_resource_type *const res, void *data)
 {
-	if (res->kind != MUEN_RES_VECTOR)
-		return true;
-
-	if (!cpu_list_remove_if_present(res))
+	if (res->kind == MUEN_RES_VECTOR && !cpu_list_remove_if_present(res))
 		cpu_list_add_entry(res);
 
 	return true;
