@@ -24,7 +24,7 @@
 
 struct subject_timed_event_type {
 	uint64_t tsc_trigger;
-	unsigned int event_nr :5;
+	unsigned int event_nr :6;
 } __packed;
 
 static struct subject_timed_event_type *timer_page;
