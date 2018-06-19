@@ -106,6 +106,11 @@ static void __init muen_platform_setup(void)
 	legacy_pic = &null_legacy_pic;
 
 	machine_ops = muen_machine_ops;
+
+	/* Required for vgacon.c */
+	screen_info.orig_video_mode = 3;
+	screen_info.orig_video_lines = 25;
+	screen_info.orig_video_cols = 80;
 }
 
 static uint32_t __init muen_platform(void)
