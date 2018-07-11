@@ -273,7 +273,7 @@ static void notrace start_secondary(void *unused)
 	 * from seeing a half valid vector space.
 	 */
 	lock_vector_lock();
-	setup_vector_irq(smp_processor_id());
+	lapic_online();
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
 	cpu_set_state_online(smp_processor_id());
