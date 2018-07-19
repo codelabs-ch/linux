@@ -7981,7 +7981,19 @@ module_exit(vmx_exit);
 static int __init vmx_init(void)
 {
 	int r, cpu;
+	uint64_t addr;
 
+	ms_hyperv.hints = HV_X64_ENLIGHTENED_VMCS_RECOMMENDED;
+	ms_hyperv.nested_features = 1;
+	hv_vp_assist_page = kcalloc(num_possible_cpus(),
+				    sizeof(*hv_vp_assist_page), GFP_KERNEL);
+	for_each_online_cpu(cpu) {
+		addr = 0xe10000000UL + cpu * 0x1000;
+		hv_vp_assist_page[cpu] = (struct hv_vp_assist_page *)ioremap_cache
+			 (addr, 0x1000);
+		pr_info("KVM: vmx: hv_vp_assist_page for cpu %u @ 0x%llx\n",
+				cpu, addr);
+	}
 #if IS_ENABLED(CONFIG_HYPERV)
 	/*
 	 * Enlightened VMCS usage should be recommended and the host needs
@@ -7998,6 +8010,7 @@ static int __init vmx_init(void)
 		for_each_online_cpu(cpu) {
 			if (!hv_get_vp_assist_page(cpu)) {
 				enlightened_vmcs = false;
+				pr_info("KVM: vmx: Enlightened VMCS not enabled for CPU %u\n", cpu);
 				break;
 			}
 		}
