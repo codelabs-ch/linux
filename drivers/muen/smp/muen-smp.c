@@ -23,7 +23,7 @@
 #include <asm/hw_irq.h>
 #include <asm/fpu/internal.h>
 
-#include <muen/sinfo.h>
+#include <muen/smp.h>
 
 #include "muen-clkevt.h"
 
@@ -131,12 +131,6 @@ static void muen_setup_events(void)
 /* CPU resource affinity handling */
 static DEFINE_SPINLOCK(affinity_list_lock);
 static struct list_head affinity_list = LIST_HEAD_INIT(affinity_list);
-
-struct muen_cpu_affinity {
-	uint8_t cpu;
-	struct muen_resource_type res;
-	struct list_head list;
-};
 
 /* Add new entry to CPU affinity list */
 static void cpu_list_add_entry(const struct muen_resource_type *const res)
@@ -447,34 +441,38 @@ void muen_smp_send_reschedule(int cpu)
 	kvm_hypercall0(cfg->reschedule[cpu]);
 }
 
-const struct muen_device_type *const
-muen_smp_get_irq_affinity(const uint16_t sid, unsigned int *cpu)
+int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
+		match_func func, void *match_data)
 {
-	struct muen_cpu_affinity *entry;
+	unsigned int count = 0;
+	struct muen_cpu_affinity *entry, *copy;
+
+	INIT_LIST_HEAD(&result->list);
 
 	list_for_each_entry(entry, &affinity_list, list) {
-		if (entry->res.kind == MUEN_RES_DEVICE
-				&& entry->res.data.dev.sid == sid) {
-			*cpu = entry->cpu;
-			return &entry->res.data.dev;
+		if (!func || func(entry, match_data)) {
+			copy = kmemdup(entry, sizeof(*entry), GFP_KERNEL);
+			if (!copy)
+				goto free_and_exit;
+			list_add_tail(&copy->list, &result->list);
+			count++;
 		}
 	}
-	return NULL;
+	return count;
+
+free_and_exit:
+	muen_smp_free_res_affinity(result);
+	return -ENOMEM;
 }
 
-const bool
-muen_smp_get_event_vector(const char *const name, uint8_t *const vector)
+void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free)
 {
-	struct muen_cpu_affinity *entry;
+	struct muen_cpu_affinity *entry, *tmp;
 
-	list_for_each_entry(entry, &affinity_list, list) {
-		if (entry->res.kind == MUEN_RES_VECTOR
-				&& muen_names_equal(&entry->res.name, name)) {
-			*vector = entry->res.data.number;
-			return true;
-		}
+	list_for_each_entry_safe(entry, tmp, &to_free->list, list) {
+		list_del(&entry->list);
+		kfree(entry);
 	}
-	return false;
 }
 
 void __init muen_smp_init(void)

@@ -153,6 +153,33 @@ static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static bool
+muen_match_evtname(const struct muen_cpu_affinity *const affinity, void *data)
+{
+	const char *const name = data;
+
+	return affinity->res.kind == MUEN_RES_VECTOR
+		&& muen_names_equal(&affinity->res.name, name);
+}
+
+static bool
+muen_smp_get_event_vector(const char *const name, uint8_t *const vector)
+{
+	unsigned int affinity_count;
+	struct muen_cpu_affinity affinity, *first;
+
+	affinity_count = muen_smp_get_res_affinity(&affinity,
+			&muen_match_evtname, (void *)name);
+	if (affinity_count == 1) {
+		first = list_first_entry(&affinity.list,
+				struct muen_cpu_affinity, list);
+		*vector = first->res.data.number;
+	}
+
+	muen_smp_free_res_affinity(&affinity);
+	return affinity_count == 1;
+}
+
 static struct resource muen_input_res = {
 	.flags = IORESOURCE_IRQ,
 };
