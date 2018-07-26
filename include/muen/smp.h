@@ -1,28 +1,37 @@
 #ifndef MUEN_SMP_H
 #define MUEN_SMP_H
 
-/**
+#include <muen/sinfo.h>
+
+/*
  * Initialize SMP on Muen SK.
  */
 void __init muen_smp_init(void);
 
-/*
- * Return IRQ affinity information for PCI device with given SID.
- *
- * The function returns null if no IRQ affinity information for the specified
- * device exists. If IRQ affinity information is found, the cpu argument
- * specifies the CPU which is responsible for the IRQ(s) of the device.
- */
-const struct muen_device_type *const
-muen_smp_get_irq_affinity(const uint16_t sid, unsigned int *cpu);
+/* Resource to CPU affinity information */
+struct muen_cpu_affinity {
+	uint8_t cpu;
+	struct muen_resource_type res;
+	struct list_head list;
+};
+
+/* CPU resource affinity match function. */
+typedef bool (*match_func)(const struct muen_cpu_affinity *const aff,
+		void *match_data);
 
 /*
- * Return event vector with given logical name.
+ * Get list of CPU affinity entries for which the given match function
+ * evaluates to true.
  *
- * False is returned if no such event vector exists in the CPU affinity
- * database.
+ * Returns the affinity entry count on success, a negative value on error. If
+ * the match function is NULL, all available affinity records are returned.
  */
-const bool
-muen_smp_get_event_vector(const char *const name, uint8_t *const vector);
+int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
+		match_func func, void *match_data);
+
+/*
+ * Remove and free elements of given CPU affinity list.
+ */
+void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free);
 
 #endif /* MUEN_SMP_H */
