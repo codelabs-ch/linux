@@ -210,7 +210,7 @@ static int __init muen_input_init(void)
 	if (!muen_input)
 		return -ENOMEM;
 
-	irq_number = evt_vec - ISA_IRQ_VECTOR(0);
+	irq_number = evt_vec - IRQ0_VECTOR;
 	pr_info("muen-input: Using input channel '%s' at address 0x%llx, IRQ %d\n",
 		input_channel_name, region->data.mem.address, irq_number);
 

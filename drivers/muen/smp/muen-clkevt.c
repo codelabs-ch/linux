@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/clockchips.h>
 #include <linux/percpu.h>
+#include <linux/ftrace.h>
 #include <muen/sinfo.h>
 
 struct subject_timed_event_type {
@@ -29,10 +30,25 @@ struct subject_timed_event_type {
 
 static struct subject_timed_event_type *timer_page;
 
-static int muen_timer_shutdown(struct clock_event_device *const evt)
+static void muen_timer_set_mode(const enum clock_event_mode mode,
+				struct clock_event_device *const evt)
 {
-	timer_page->tsc_trigger = ULLONG_MAX;
-	return 0;
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		/* unsupported */
+		WARN_ON(1);
+		break;
+
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		/* Cancel timer by setting timer to maximum value */
+		timer_page->tsc_trigger = ULLONG_MAX;
+		break;
+
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_RESUME:
+		break;
+	}
 }
 
 static int muen_timer_next_event(const unsigned long delta,
@@ -45,12 +61,12 @@ static int muen_timer_next_event(const unsigned long delta,
 }
 
 static struct clock_event_device muen_clockevent = {
-	.name			= "muen-clkevt",
-	.features		= CLOCK_EVT_FEAT_ONESHOT,
-	.set_next_event		= muen_timer_next_event,
-	.set_state_shutdown	= muen_timer_shutdown,
-	.rating			= INT_MAX,
-	.irq			= -1,
+	.name		= "muen-clkevt",
+	.features	= CLOCK_EVT_FEAT_ONESHOT,
+	.set_mode	= muen_timer_set_mode,
+	.set_next_event	= muen_timer_next_event,
+	.rating		= INT_MAX,
+	.irq		= -1,
 };
 
 static DEFINE_PER_CPU(struct clock_event_device, muen_events);

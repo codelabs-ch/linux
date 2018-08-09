@@ -80,8 +80,6 @@ static const struct machine_ops muen_machine_ops __initconst = {
 	.emergency_restart	= muen_machine_emergency_restart,
 };
 
-static int muen_pic_probe(void) { return NR_IRQS_LEGACY; }
-
 static void __init muen_init_IRQ(void)
 {
 	native_init_IRQ();
@@ -102,7 +100,6 @@ static void __init muen_platform_setup(void)
 #endif
 
 	null_legacy_pic.nr_legacy_irqs = NR_IRQS_LEGACY;
-	null_legacy_pic.probe          = muen_pic_probe;
 	legacy_pic = &null_legacy_pic;
 
 	machine_ops = muen_machine_ops;
@@ -122,7 +119,6 @@ static uint32_t __init muen_platform(void)
 const __initconst struct hypervisor_x86 x86_hyper_muen = {
 	.name		    = "Muen SK",
 	.detect		    = muen_platform,
-	.type		    = X86_HYPER_MUEN,
-	.init.init_platform = muen_platform_setup,
+	.init_platform = muen_platform_setup,
 };
 EXPORT_SYMBOL(x86_hyper_muen);

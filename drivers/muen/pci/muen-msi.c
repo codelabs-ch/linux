@@ -34,8 +34,8 @@ static void noop(struct irq_data *data) { }
 static struct irq_chip msi_chip = {
 	.name        = "Muen-MSI",
 	.irq_ack     = noop,
-	.irq_mask    = pci_msi_mask_irq,
-	.irq_unmask  = pci_msi_unmask_irq,
+	.irq_mask    = mask_msi_irq,
+	.irq_unmask  = unmask_msi_irq,
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -73,7 +73,7 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 		return ret;
 
 	muen_msi_compose_msg(dev, irq, 0, &msg, -1, handle);
-	pci_write_msi_msg(irq, &msg);
+	write_msi_msg(irq, &msg);
 
 	irq_set_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
@@ -108,7 +108,7 @@ static int muen_irq_alloc_descs(struct pci_dev *dev, const unsigned int virq,
 static void muen_irq_free_desc(const unsigned int irq, const unsigned int virq)
 {
 	irq_free_descs(irq, 1);
-	__this_cpu_write(vector_irq[virq], VECTOR_UNUSED);
+	__this_cpu_write(vector_irq[virq], VECTOR_UNDEFINED);
 }
 
 static bool
@@ -151,8 +151,7 @@ muen_setup_cpu_vector_irqs(const struct muen_cpu_affinity *const affinity)
 		dev = &entry->res.data.dev;
 		for (i = 0; i < dev->ir_count; i++)
 			per_cpu(vector_irq, entry->cpu)[dev->irq_start + i] =
-				irq_to_desc(dev->irq_start
-						- ISA_IRQ_VECTOR(0) + i);
+				dev->irq_start - IRQ0_VECTOR + i;
 	}
 }
 
@@ -193,7 +192,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	}
 
 	virq = dev_data->irq_start;
-	dev->irq = virq - ISA_IRQ_VECTOR(0);
+	dev->irq = virq - IRQ0_VECTOR;
 	if (dev->irq >= NR_IRQS_LEGACY) {
 		ret = muen_irq_alloc_descs(dev, virq, nvec);
 		if (ret < 0)
@@ -201,7 +200,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	}
 
 	irq = dev->irq;
-	list_for_each_entry(msidesc, dev_to_msi_list(&dev->dev), list) {
+	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		ret = muen_setup_msi_irq(dev, msidesc, irq,
 					 dev_data->irte_start);
 		if (ret < 0)
@@ -227,7 +226,7 @@ static void muen_teardown_msi_irq(unsigned int irq)
 {
 	/* Do not destroy legacy IRQs */
 	if (irq >= NR_IRQS_LEGACY && irq_to_desc(irq))
-		muen_irq_free_desc(irq, irq + ISA_IRQ_VECTOR(0));
+		muen_irq_free_desc(irq, irq + IRQ0_VECTOR);
 }
 
 int __init muen_msi_init(void)

@@ -18,10 +18,12 @@
 #include <linux/delay.h>
 #include <linux/stackprotector.h>
 #include <linux/smp.h>
+#include <linux/slab.h>
 
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
-#include <asm/fpu/internal.h>
+#include <asm/i387.h>
+#include <asm/fpu-internal.h>
 
 #include <muen/smp.h>
 
@@ -213,7 +215,6 @@ static void muen_smp_store_cpu_info(int id)
 	c->apicid = id;
 
 	BUG_ON(c == &boot_cpu_data);
-	BUG_ON(topology_update_package_map(c->phys_proc_id, id));
 }
 
 /*
@@ -247,15 +248,12 @@ static void smp_callin(void)
 static void notrace start_secondary(void *unused)
 {
 	/*
-	 * Don't put *anything* except direct CPU state initialization
-	 * before cpu_init(), SMP booting is too fragile that we want to
-	 * limit the things done here to the most necessary things.
+	 * Don't put *anything* before cpu_init(), SMP booting is too
+	 * fragile that we want to limit the things done here to the
+	 * most necessary things.
 	 */
-	if (boot_cpu_has(X86_FEATURE_PCID))
-		__write_cr4(__read_cr4() | X86_CR4_PCIDE);
-
-	load_current_idt();
 	cpu_init();
+	x86_cpuinit.early_percpu_clock_init();
 	preempt_disable();
 	smp_callin();
 
@@ -273,10 +271,10 @@ static void notrace start_secondary(void *unused)
 	 * from seeing a half valid vector space.
 	 */
 	lock_vector_lock();
-	setup_vector_irq(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
-	cpu_set_state_online(smp_processor_id());
+	/* not required?
+	   per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE; */
 	x86_platform.nmi_init();
 
 	/* enable local interrupts */
@@ -289,7 +287,7 @@ static void notrace start_secondary(void *unused)
 	muen_setup_events();
 	muen_setup_timer();
 	muen_register_resources();
-	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 static int do_boot_cpu(int cpu, struct task_struct *idle)
@@ -300,10 +298,21 @@ static int do_boot_cpu(int cpu, struct task_struct *idle)
 	unsigned long boot_error = 0;
 	unsigned long timeout;
 
-	idle->thread.sp = (unsigned long)task_pt_regs(idle);
-	early_gdt_descr.address = (unsigned long)get_cpu_gdt_rw(cpu);
+	alternatives_enable_smp();
+
+	idle->thread.sp = (unsigned long) (((struct pt_regs *)
+			  (THREAD_SIZE +  task_stack_page(idle))) - 1);
+	per_cpu(current_task, cpu) = idle;
+
+	clear_tsk_thread_flag(idle, TIF_FORK);
+	initial_gs = per_cpu_offset(cpu);
+
+	per_cpu(kernel_stack, cpu) =
+		(unsigned long)task_stack_page(idle) -
+		KERNEL_STACK_OFFSET + THREAD_SIZE;
+	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
-	initial_stack  = idle->thread.sp;
+	stack_start  = idle->thread.sp;
 
 	cpumask_clear_cpu(cpu, cpu_initialized_mask);
 	smp_mb();
@@ -353,15 +362,11 @@ int muen_cpu_up(unsigned int cpu, struct task_struct *tidle)
 		return -ENOSYS;
 	}
 
-	/* x86 CPUs take themselves offline, so delayed offline is OK. */
-	err = cpu_check_up_prepare(cpu);
-	if (err && err != -EBUSY)
-		return err;
+	/* not required?
+	   per_cpu(cpu_state, cpu) = CPU_UP_PREPARE; */
 
 	/* the FPU context is blank, nobody can own it */
-	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
-
-	common_cpu_up(cpu, tidle);
+	__cpu_disable_lazy_restore(cpu);
 
 	err = do_boot_cpu(cpu, tidle);
 	if (err) {
