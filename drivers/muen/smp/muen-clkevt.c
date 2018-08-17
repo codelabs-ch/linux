@@ -15,6 +15,7 @@
 
 #include <asm/time.h>
 #include <asm/setup.h>
+#include <asm/irq_regs.h>
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
