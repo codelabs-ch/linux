@@ -419,6 +419,11 @@ void kvm_set_cpu_caps(void)
 		F(FXSR) | F(XMM) | F(XMM2) | F(SELFSNOOP) |
 		0 /* HTT, TM, Reserved, PBE */
 	);
+	kvm_cpu_cap_set(X86_FEATURE_TSC);
+	kvm_cpu_cap_set(X86_FEATURE_APIC);
+	kvm_cpu_cap_set(X86_FEATURE_MTRR);
+	kvm_cpu_cap_set(X86_FEATURE_PAT);
+	kvm_cpu_cap_set(X86_FEATURE_PSE36);
 
 	kvm_cpu_cap_mask(CPUID_7_0_EBX,
 		F(FSGSBASE) | F(SGX) | F(BMI1) | F(HLE) | F(AVX2) |
