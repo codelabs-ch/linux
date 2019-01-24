@@ -16,7 +16,6 @@
 #include <linux/cpumask.h>
 #include <linux/aer.h>
 #include <linux/acpi.h>
-#include <linux/hypervisor.h>
 #include <linux/irqdomain.h>
 #include <linux/pm_runtime.h>
 #include <linux/bitfield.h>
