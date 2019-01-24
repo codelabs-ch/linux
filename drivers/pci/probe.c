@@ -2833,7 +2833,7 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 	dev_dbg(&bus->dev, "scanning bus\n");
 
 	/* Go find them, Rover! */
-	for (devfn = 0; devfn < 0x100; devfn += 8)
+	for (devfn = 0; devfn < 0x100; devfn += 1)
 		pci_scan_slot(bus, devfn);
 
 	/* Reserve buses for SR-IOV capability */
