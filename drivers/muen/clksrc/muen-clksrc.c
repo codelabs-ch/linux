@@ -50,7 +50,7 @@ EXPORT_SYMBOL(muen_sched_clock_read);
 static int __init muen_cs_init(void)
 {
 	clocksource_register_khz(&muen_cs, muen_get_tsc_khz());
-	pv_time_ops.sched_clock = muen_sched_clock_read;
+	pv_ops.time.sched_clock = muen_sched_clock_read;
 	return 0;
 }
 
