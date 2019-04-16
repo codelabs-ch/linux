@@ -163,7 +163,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	unsigned int irq, irq_count, virq, affinity_count;
 	struct muen_cpu_affinity affinity;
 	const uint16_t sid = PCI_DEVID(dev->bus->number, dev->devfn);
-	const struct muen_device_type *dev_data;
+	const struct muen_device_type *dev_data = NULL;
 
 	/* Multiple vectors only supported for MSI-X */
 	if (nvec > 1 && type == PCI_CAP_ID_MSI) {
