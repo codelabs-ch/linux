@@ -17,17 +17,42 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/irq.h>
+#include <linux/kvm_para.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
 
 #include <asm/msidef.h>
 #include <asm/hw_irq.h>
+#include <asm/pci_x86.h>
 
 #include <muen/pci.h>
 #include <muen/sinfo.h>
 #include <muen/smp.h>
 
 static void noop(struct irq_data *data) { }
+
+/**
+ * Trigger corresponding EOI/unmask IRQ event which is stored in chip_data
+ * during IRQ setup.
+ */
+static void muen_eoi_level(struct irq_data *irq_data)
+{
+	const unsigned long event_nr = (unsigned long)irq_data->chip_data;
+
+	kvm_hypercall0(event_nr);
+}
+
+/**
+ * IRQ chip for PCI interrupts
+ */
+static struct irq_chip pci_chip = {
+	.name        = "Muen-PCI",
+	.irq_ack     = noop,
+	.irq_mask    = noop,
+	.irq_unmask  = noop,
+	.irq_eoi     = muen_eoi_level,
+	.flags       = IRQCHIP_SKIP_SET_WAKE,
+};
 
 /**
  * IRQ chip for PCI MSI/MSI-x interrupts
@@ -91,7 +116,8 @@ static int muen_irq_alloc_descs(struct pci_dev *dev, const unsigned int virq,
 
 	if (alloc < 0) {
 		dev_err(&dev->dev,
-			"Error allocating IRQ desc for %d IRQ(s)\n", cnt);
+			"Error allocating %d IRQ desc(s) for IRQ %d\n", cnt,
+			dev->irq);
 		return -ENOSPC;
 	} else if (alloc != dev->irq) {
 		dev_err(&dev->dev, "Error allocating IRQ desc: %d != %d\n",
@@ -157,13 +183,48 @@ muen_setup_cpu_vector_irqs(const struct muen_cpu_affinity *const affinity)
 	}
 }
 
+/**
+ * Get device data and Muen CPU affinity data for device with given source ID.
+ * On success, the caller must free the CPU affinity list.
+ */
+static int get_device_data(const struct pci_dev *const dev,
+		unsigned int requested_irq_count,
+		const struct muen_device_type **data,
+		struct muen_cpu_affinity *const affinity)
+{
+	int ret;
+	unsigned int affinity_count, irq_count;
+	const uint16_t sid = PCI_DEVID(dev->bus->number, dev->devfn);
+
+	affinity_count = muen_smp_get_res_affinity(affinity,
+			&muen_match_devsid, (void *)&sid);
+	if (list_empty(&affinity->list)) {
+		dev_err(&dev->dev, "Error retrieving Muen device info for SID 0x%x\n",
+			sid);
+		return -EINVAL;
+	}
+
+	irq_count = muen_devres_data(affinity, data);
+	if (requested_irq_count > irq_count) {
+		dev_err(&dev->dev, "Device requests more IRQs than allowed by policy (%d > %d)\n",
+			requested_irq_count, irq_count);
+		ret = -EINVAL;
+		goto error_free_affinity;
+	}
+
+	return 0;
+
+error_free_affinity:
+	muen_smp_free_res_affinity(affinity);
+	return ret;
+}
+
 static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
 	int ret;
-	unsigned int irq, irq_count, virq, affinity_count;
+	unsigned int irq, virq;
 	struct muen_cpu_affinity affinity;
-	const uint16_t sid = PCI_DEVID(dev->bus->number, dev->devfn);
 	const struct muen_device_type *dev_data = NULL;
 
 	/* Multiple vectors only supported for MSI-X */
@@ -172,21 +233,10 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 	}
 
-	affinity_count = muen_smp_get_res_affinity(&affinity,
-			&muen_match_devsid, (void *)&sid);
-	if (list_empty(&affinity.list)) {
-		dev_err(&dev->dev, "Error retrieving Muen device info for SID 0x%x\n",
-			sid);
-		return -EINVAL;
-	}
+	ret = get_device_data(dev, nvec, &dev_data, &affinity);
+	if (ret < 0)
+		return ret;
 
-	irq_count = muen_devres_data(&affinity, &dev_data);
-	if (nvec > irq_count) {
-		dev_err(&dev->dev, "Device requests more IRQs than allowed by policy (%d > %d)\n",
-			nvec, irq_count);
-		ret = -EINVAL;
-		goto error_free_affinity;
-	}
 	if (!(dev_data->flags & DEV_MSI_FLAG)) {
 		dev_err(&dev->dev, "Device not configured for MSI\n");
 		ret = -EINVAL;
@@ -231,9 +281,104 @@ static void muen_teardown_msi_irq(unsigned int irq)
 		muen_irq_free_desc(irq, irq + ISA_IRQ_VECTOR(0));
 }
 
+/**
+ * Returns the number of the EOI/Unmask IRQ event corresponding to the given
+ * vector. -EINVAL is returned, if none is present in Sinfo.
+ */
+static int muen_get_eoi_event(unsigned int vector)
+{
+	char name[MAX_NAME_LENGTH + 1];
+	const struct muen_resource_type *res;
+
+	memset(name, 0, sizeof(name));
+	snprintf(name, MAX_NAME_LENGTH, "unmask_irq_%u", vector);
+
+	res = muen_get_resource(name, MUEN_RES_EVENT);
+	if (!res)
+		return -EINVAL;
+
+	return res->data.number;
+}
+
+static int muen_enable_irq(struct pci_dev *dev)
+{
+	int ret;
+	unsigned long event_nr;
+	unsigned int virq;
+	struct muen_cpu_affinity affinity;
+	const struct muen_device_type *dev_data = NULL;
+
+	ret = get_device_data(dev, 1, &dev_data, &affinity);
+	if (ret < 0)
+		return ret;
+
+	virq = dev_data->irq_start;
+	dev->irq = virq - ISA_IRQ_VECTOR(0);
+	if (dev_data->flags & DEV_MSI_FLAG) {
+		dev_dbg(&dev->dev, "Skipping PCI IRQ allocation in favor of MSI\n");
+		muen_smp_free_res_affinity(&affinity);
+		return 0;
+	}
+
+	if (dev->irq >= NR_IRQS_LEGACY) {
+		ret = muen_irq_alloc_descs(dev, virq, 1);
+		if (ret < 0)
+			goto error_free_affinity;
+	}
+	ret = muen_get_eoi_event(virq);
+	if (ret < 0) {
+		dev_err(&dev->dev, "EOI event for IRQ %d not present\n",
+				dev->irq);
+		ret = -EINVAL;
+		goto error_free_desc;
+	}
+
+	event_nr = ret;
+	irq_set_chip_data(dev->irq, (void *)event_nr);
+	muen_setup_cpu_vector_irqs(&affinity);
+	irq_set_chip_and_handler_name(dev->irq, &pci_chip,
+			handle_fasteoi_irq, "fasteoi");
+	dev_info(&dev->dev, "PCI IRQ %d (EOI event: %lu)\n", dev->irq,
+				 event_nr);
+
+	muen_smp_free_res_affinity(&affinity);
+	return 0;
+
+error_free_desc:
+	irq_free_descs(dev->irq, 1);
+error_free_affinity:
+	muen_smp_free_res_affinity(&affinity);
+	return ret;
+}
+
+static void muen_disable_irq(struct pci_dev *dev)
+{
+	muen_teardown_msi_irq(dev->irq);
+}
+
+/*
+ * Required to set x86_init.pci.init in order to signal successful PCI
+ * initialization, see pci_subsys_init().
+ * By default, it is set to pci_acpi_init which will return an error due to
+ * acpi_noirq.
+ */
+int __init pci_init_noop(void)
+{
+	return 0;
+}
+
 int __init muen_pci_init(void)
 {
-	pr_info("muen: Registering platform-specific MSI operations\n");
+	pr_info("muen: Registering platform-specific PCI/MSI operations\n");
+
+	pcibios_enable_irq = muen_enable_irq;
+	pcibios_disable_irq = muen_disable_irq;
+
+	x86_init.pci.init = pci_init_noop;
+	x86_init.pci.init_irq = x86_init_noop;
+
+	/* Avoid ACPI interference */
+	acpi_noirq_set();
 
 	x86_msi.setup_msi_irqs   = muen_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = muen_teardown_msi_irq;
