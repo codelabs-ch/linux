@@ -29,8 +29,8 @@ config MUEN_PCI
 	depends on MUEN_SINFO && PCI_MSI
 	default n
 	help
-	  The Muen PCI driver provides support for Message Signaled
-	  Interrupts for passed through PCI devices.
+	  The Muen PCI driver provides support for level-triggered and Message
+	  Signaled Interrupts for passed through PCI devices.
 
 config MUEN_INPUT
 	tristate "Muen virtual input device support"
