@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
  * Copyright (C) 2014-2015  Reto Buerki <reet@codelabs.ch>
  * Copyright (C) 2014-2015  Adrian-Ken Rueegsegger <ken@codelabs.ch>
