@@ -175,33 +175,34 @@ cpu_list_remove_if_present(const struct muen_resource_type *const res)
 	return result;
 }
 
-/*
- * Register device IRQs in CPU affinity list. IRQs are guaranteed to be unique
- * because they can only be assigned to one CPU.
- */
-static bool cpu_list_register_dev_irqs(
+static bool register_resource(
 		const struct muen_resource_type *const res, void *data)
 {
-	if (res->kind == MUEN_RES_DEVICE && res->data.dev.ir_count)
-		cpu_list_add_entry(res);
-
-	return true;
-}
-
-/* Register unique event vectors in CPU affinity list. */
-static bool cpu_list_register_unique_vecs(
-		const struct muen_resource_type *const res, void *data)
-{
-	if (res->kind == MUEN_RES_VECTOR && !cpu_list_remove_if_present(res))
-		cpu_list_add_entry(res);
+	switch (res->kind) {
+	case MUEN_RES_DEVICE:
+		/*
+		 * Register device IRQs in CPU affinity list. IRQs are
+		 * guaranteed to be unique because they can only be assigned to
+		 * one CPU.
+		 */
+		if (res->data.dev.ir_count)
+			cpu_list_add_entry(res);
+		break;
+	case MUEN_RES_VECTOR:
+		/* Register unique event vectors in CPU affinity list. */
+		if (!cpu_list_remove_if_present(res))
+			cpu_list_add_entry(res);
+		break;
+	default:
+		break;
+	}
 
 	return true;
 }
 
 static void muen_register_resources(void)
 {
-	muen_for_each_resource(cpu_list_register_dev_irqs, NULL);
-	muen_for_each_resource(cpu_list_register_unique_vecs, NULL);
+	muen_for_each_resource(register_resource, NULL);
 }
 
 static void muen_smp_store_cpu_info(int id)
