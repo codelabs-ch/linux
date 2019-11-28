@@ -17,6 +17,7 @@
 #include <linux/cpu.h>
 #include <linux/kvm_para.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
 #include <linux/stackprotector.h>
 #include <linux/smp.h>
 
@@ -175,6 +176,25 @@ cpu_list_remove_if_present(const struct muen_resource_type *const res)
 	return result;
 }
 
+/*
+ * Allocate IRQ descriptor for given vector and register it with IRQ chip.
+ */
+static void allocate_vector(const struct muen_resource_type *const res)
+{
+	const int this_cpu = smp_processor_id();
+	const unsigned int vec = res->data.number;
+	int irq;
+
+	if (vec > ISA_IRQ_VECTOR(15) && vec < FIRST_SYSTEM_VECTOR) {
+		irq = irq_alloc_desc_at(vec - ISA_IRQ_VECTOR(0), -1);
+		per_cpu(vector_irq, this_cpu)[vec] = irq_to_desc(irq);
+		pr_info("muen-smp: Allocating IRQ %u for event %s (CPU#%d)\n",
+			irq, res->name.data, this_cpu);
+		irq_set_chip_and_handler(irq, &dummy_irq_chip,
+			handle_edge_irq);
+	}
+}
+
 static bool register_resource(
 		const struct muen_resource_type *const res, void *data)
 {
@@ -192,6 +212,8 @@ static bool register_resource(
 		/* Register unique event vectors in CPU affinity list. */
 		if (!cpu_list_remove_if_present(res))
 			cpu_list_add_entry(res);
+
+		allocate_vector(res);
 		break;
 	default:
 		break;
