@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013-2015  Reto Buerki <reet@codelabs.ch>
  * Copyright (C) 2013-2015  Adrian-Ken Rueegsegger <ken@codelabs.ch>
