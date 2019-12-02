@@ -873,7 +873,7 @@ config ACRN_GUEST
 config MUEN_GUEST
 	bool "Muen SK Guest support"
 	select MUEN_SINFO
-	select MUEN_PCI_MSI
+	select MUEN_PCI
 	select MUEN_CLKSRC
 	select MUEN_SMP
 	default n

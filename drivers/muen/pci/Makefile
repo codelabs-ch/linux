@@ -1,1 +1,1 @@
-obj-y += muen-msi.o
+obj-y += muen-pci.o
