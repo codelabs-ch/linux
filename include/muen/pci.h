@@ -2,8 +2,8 @@
 #define MUEN_PCI_H
 
 /**
- * Initialize Muen Message Signaled Interrupt handling.
+ * Initialize Muen PCI driver.
  */
-int __init muen_msi_init(void);
+int __init muen_pci_init(void);
 
 #endif /* MUEN_PCI_H */
