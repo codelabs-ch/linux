@@ -24,13 +24,13 @@ config MUEN_CLKSRC
 	  This driver implements a clocksource based on scheduling information
 	  exported by the sinfo API.
 
-config MUEN_PCI_MSI
-	bool "Muen PCI Message Signaled Interrupt support"
+config MUEN_PCI
+	bool "Muen PCI driver"
 	depends on MUEN_SINFO && PCI_MSI
 	default n
 	help
-	  The Muen PCI MSI driver provides support for Message Signaled Interrupts
-	  for passed through PCI devices.
+	  The Muen PCI driver provides support for Message Signaled
+	  Interrupts for passed through PCI devices.
 
 config MUEN_INPUT
 	tristate "Muen virtual input device support"
