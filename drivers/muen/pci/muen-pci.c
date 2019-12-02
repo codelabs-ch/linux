@@ -231,7 +231,7 @@ static void muen_teardown_msi_irq(unsigned int irq)
 		muen_irq_free_desc(irq, irq + ISA_IRQ_VECTOR(0));
 }
 
-int __init muen_msi_init(void)
+int __init muen_pci_init(void)
 {
 	pr_info("muen: Registering platform-specific MSI operations\n");
 
@@ -243,5 +243,5 @@ int __init muen_msi_init(void)
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
-MODULE_DESCRIPTION("Muen PCI MSI driver");
+MODULE_DESCRIPTION("Muen PCI driver");
 MODULE_LICENSE("GPL");
