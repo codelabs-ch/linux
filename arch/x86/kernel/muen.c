@@ -94,8 +94,8 @@ static void __init muen_platform_setup(void)
 	setup_clear_cpu_cap(X86_FEATURE_TSC);
 
 	x86_init.irqs.intr_init	= muen_init_IRQ;
-#ifdef CONFIG_MUEN_PCI_MSI
-	x86_init.pci.arch_init	= muen_msi_init;
+#ifdef CONFIG_MUEN_PCI
+	x86_init.pci.arch_init	= muen_pci_init;
 #endif
 
 #ifdef CONFIG_MUEN_SMP
