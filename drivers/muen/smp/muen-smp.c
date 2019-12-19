@@ -23,6 +23,7 @@
 
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
+#include <asm/spec-ctrl.h>
 #include <asm/fpu/internal.h>
 
 #include <muen/smp.h>
@@ -251,11 +252,11 @@ static void notrace start_secondary(void *unused)
 	 * before cpu_init(), SMP booting is too fragile that we want to
 	 * limit the things done here to the most necessary things.
 	 */
-	if (boot_cpu_has(X86_FEATURE_PCID))
-		__write_cr4(__read_cr4() | X86_CR4_PCIDE);
+	cr4_init();
 
 	load_current_idt();
 	cpu_init();
+	x86_cpuinit.early_percpu_clock_init();
 	preempt_disable();
 	smp_callin();
 
@@ -265,6 +266,8 @@ static void notrace start_secondary(void *unused)
 	 * Check TSC synchronization with the BP:
 	 */
 	check_tsc_sync_target();
+
+	speculative_store_bypass_ht_init();
 
 	/*
 	 * Lock vector_lock and initialize the vectors on this cpu
@@ -294,9 +297,6 @@ static void notrace start_secondary(void *unused)
 
 static int do_boot_cpu(int cpu, struct task_struct *idle)
 {
-	volatile u32 *trampoline_status =
-		(volatile u32 *) __va(real_mode_header->trampoline_status);
-
 	unsigned long boot_error = 0;
 	unsigned long timeout;
 
@@ -334,9 +334,6 @@ static int do_boot_cpu(int cpu, struct task_struct *idle)
 		while (!cpumask_test_cpu(cpu, cpu_callin_mask))
 			schedule();
 	}
-
-	/* mark "stuck" area as not stuck */
-	*trampoline_status = 0;
 
 	return boot_error;
 }
