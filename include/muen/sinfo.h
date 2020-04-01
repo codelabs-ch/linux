@@ -32,7 +32,7 @@
 
 #include <linux/init.h>
 
-#define MUEN_SUBJECT_INFO_MAGIC	0x02006f666e69756dULL
+#define MUEN_SUBJECT_INFO_MAGIC	0x03006f666e69756dULL
 
 #define MAX_RESOURCE_COUNT	255
 #define MAX_NAME_LENGTH		63
@@ -41,7 +41,6 @@
 
 #define MEM_WRITABLE_FLAG	(1 << 0)
 #define MEM_EXECUTABLE_FLAG	(1 << 1)
-#define MEM_CHANNEL_FLAG	(1 << 2)
 
 #define DEV_MSI_FLAG		(1 << 0)
 
@@ -59,20 +58,46 @@ struct muen_name_type {
 	uint8_t null_term;
 } __packed;
 
+/* Type of memory */
+enum muen_memory_kind {
+	MUEN_MEM_SUBJ = 0,
+	MUEN_MEM_SUBJ_INFO,
+	MUEN_MEM_SUBJ_BIN,
+	MUEN_MEM_SUBJ_ZP,
+	MUEN_MEM_SUBJ_INITRD,
+	MUEN_MEM_SUBJ_CHANNEL,
+	MUEN_MEM_SUBJ_STATE,
+	MUEN_MEM_SUBJ_TIMED_EVT,
+	MUEN_MEM_SUBJ_INTRS,
+	MUEN_MEM_SUBJ_SCHEDINFO,
+	MUEN_MEM_SUBJ_BIOS,
+	MUEN_MEM_SUBJ_ACPI_RSDP,
+	MUEN_MEM_SUBJ_ACPI_XSDT,
+	MUEN_MEM_SUBJ_ACPI_FADT,
+	MUEN_MEM_SUBJ_ACPI_DSDT,
+	MUEN_MEM_SUBJ_DEVICE,
+	MUEN_MEM_SUBJ_SOLO5_BOOT_INFO,
+	MUEN_MEM_SUBJ_CRASH_AUDIT,
+	MUEN_MEM_KRNL_IFACE
+} __packed;
+
 /* Known memory contents */
 enum muen_content_kind {
-	MUEN_CONTENT_UNINITIALIZED, MUEN_CONTENT_FILL, MUEN_CONTENT_FILE
-};
+	MUEN_CONTENT_UNINITIALIZED = 0,
+	MUEN_CONTENT_FILL,
+	MUEN_CONTENT_FILE
+} __packed;
 
 /* Structure holding information about a memory region */
 struct muen_memregion_type {
+	enum muen_memory_kind kind;
 	enum muen_content_kind content;
+	uint8_t flags;
+	uint16_t pattern;
+	char padding[3];
 	uint64_t address;
 	uint64_t size;
 	uint8_t hash[HASH_LENGTH];
-	uint8_t flags;
-	uint16_t pattern;
-	char padding[1];
 } __packed;
 
 /* Required for explicit padding */
@@ -89,16 +114,32 @@ struct muen_device_type {
 	char padding[largest_variant_size - device_type_size];
 } __packed;
 
+#define devmem_type_size (1 + 16)
+
+/* Structure holding information about a device MMIO region */
+struct muen_devmem_type {
+	uint8_t flags;
+	char padding1[7];
+	uint64_t address;
+	uint64_t size;
+	char padding2[largest_variant_size - (devmem_type_size + 7)];
+} __packed;
+
 /* Currently known resource types */
 enum muen_resource_kind {
-	MUEN_RES_NONE, MUEN_RES_MEMORY, MUEN_RES_EVENT, MUEN_RES_VECTOR,
-	MUEN_RES_DEVICE
+	MUEN_RES_NONE = 0,
+	MUEN_RES_MEMORY,
+	MUEN_RES_EVENT,
+	MUEN_RES_VECTOR,
+	MUEN_RES_DEVICE,
+	MUEN_RES_DEVMEM
 };
 
 /* Resource data depending on the kind of resource */
 union muen_resource_data {
 	struct muen_memregion_type mem;
 	struct muen_device_type dev;
+	struct muen_devmem_type devmem;
 	uint8_t number;
 };
 
