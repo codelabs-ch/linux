@@ -99,7 +99,7 @@ static bool log_resource(const struct muen_resource_type *const res, void *data)
 			res->data.mem.address, res->data.mem.size,
 			res->data.mem.flags & MEM_WRITABLE_FLAG ? "rw" : "ro",
 			res->data.mem.flags & MEM_EXECUTABLE_FLAG ? "x" : "-",
-			res->data.mem.flags & MEM_CHANNEL_FLAG ? "c" : "-",
+			res->data.mem.kind == MUEN_MEM_SUBJ_CHANNEL ? "c" : "-",
 			res->name.data);
 
 		if (res->data.mem.content == MUEN_CONTENT_FILL)
@@ -118,6 +118,15 @@ static bool log_resource(const struct muen_resource_type *const res, void *data)
 			res->data.dev.sid, res->data.dev.irte_start,
 			res->data.dev.irq_start, res->data.dev.ir_count,
 			res->data.dev.flags, res->name.data);
+		break;
+	case MUEN_RES_DEVMEM:
+		pr_info("muen-sinfo: device memory [addr 0x%016llx size 0x%016llx %s%s] %s\n",
+			res->data.devmem.address, res->data.devmem.size,
+			res->data.devmem.flags & MEM_WRITABLE_FLAG
+				? "rw" : "ro",
+			res->data.devmem.flags & MEM_EXECUTABLE_FLAG
+				? "x" : "-",
+			res->name.data);
 		break;
 	case MUEN_RES_EVENT:
 		pr_info("muen-sinfo: event [number %u] %s\n",
