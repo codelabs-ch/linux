@@ -486,6 +486,43 @@ free_and_exit:
 }
 EXPORT_SYMBOL(muen_smp_get_res_affinity);
 
+struct match_data {
+	const char *const name;
+	const enum muen_resource_kind kind;
+};
+
+static bool
+muen_match_name_kind(const struct muen_cpu_affinity *const affinity, void *data)
+{
+	const struct match_data *const match = data;
+
+	return affinity->res.kind == match->kind
+		&& muen_names_equal(&affinity->res.name, match->name);
+}
+
+bool muen_smp_one_match(struct muen_cpu_affinity *const result,
+		const char *const name, const enum muen_resource_kind kind)
+{
+	unsigned int affinity_count;
+	struct muen_cpu_affinity affinity, *first;
+	const struct match_data match = {
+		.name = name,
+		.kind = kind,
+	};
+
+	affinity_count = muen_smp_get_res_affinity(&affinity,
+			muen_match_name_kind, (void *)&match);
+	if (affinity_count == 1) {
+		first = list_first_entry(&affinity.list,
+				struct muen_cpu_affinity, list);
+		*result = *first;
+	}
+
+	muen_smp_free_res_affinity(&affinity);
+	return affinity_count == 1;
+}
+EXPORT_SYMBOL(muen_smp_one_match);
+
 void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free)
 {
 	struct muen_cpu_affinity *entry, *tmp;
