@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 
 #include <muen/reader.h>
-#include <muen/sinfo.h>
 #include <muen/smp.h>
 
 #define MUEN_PROTO_INPUT 0x9a0a8679dbc22dcbULL
@@ -154,33 +153,6 @@ static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static bool
-muen_match_evtname(const struct muen_cpu_affinity *const affinity, void *data)
-{
-	const char *const name = data;
-
-	return affinity->res.kind == MUEN_RES_VECTOR
-		&& muen_names_equal(&affinity->res.name, name);
-}
-
-static bool
-muen_smp_get_event_vector(const char *const name, uint8_t *const vector)
-{
-	unsigned int affinity_count;
-	struct muen_cpu_affinity affinity, *first;
-
-	affinity_count = muen_smp_get_res_affinity(&affinity,
-			&muen_match_evtname, (void *)name);
-	if (affinity_count == 1) {
-		first = list_first_entry(&affinity.list,
-				struct muen_cpu_affinity, list);
-		*vector = first->res.data.number;
-	}
-
-	muen_smp_free_res_affinity(&affinity);
-	return affinity_count == 1;
-}
-
 static struct resource muen_input_res = {
 	.flags = IORESOURCE_IRQ,
 };
@@ -188,8 +160,9 @@ static struct resource muen_input_res = {
 static int __init muen_input_init(void)
 {
 	struct muen_input_event ev;
-	uint8_t irq_number, evt_vec;
+	uint8_t irq_number;
 	int i, error;
+	struct muen_cpu_affinity evt_vec;
 
 	const struct muen_resource_type *const
 	       region = muen_get_resource(input_channel_name,
@@ -201,7 +174,7 @@ static int __init muen_input_init(void)
 		return -EINVAL;
 	}
 
-	if (!muen_smp_get_event_vector(input_channel_name, &evt_vec)) {
+	if (!muen_smp_one_match(&evt_vec, input_channel_name, MUEN_RES_VECTOR)) {
 		pr_err("muen-input: Unable to retrieve vector for input channel '%s'\n",
 		       input_channel_name);
 		return -EINVAL;
@@ -211,7 +184,7 @@ static int __init muen_input_init(void)
 	if (!muen_input)
 		return -ENOMEM;
 
-	irq_number = evt_vec - ISA_IRQ_VECTOR(0);
+	irq_number = evt_vec.res.data.number - ISA_IRQ_VECTOR(0);
 	pr_info("muen-input: Using input channel '%s' at address 0x%llx, IRQ %d\n",
 		input_channel_name, region->data.mem.address, irq_number);
 
