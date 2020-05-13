@@ -465,6 +465,26 @@ void muen_smp_send_reschedule(int cpu)
 	kvm_hypercall0(cfg->reschedule[cpu]);
 }
 
+static void do_trigger_event(void *data)
+{
+	uint8_t *id = data;
+
+	kvm_hypercall0(*id);
+}
+
+void muen_smp_trigger_event(const uint8_t id, const uint8_t cpu)
+{
+	const unsigned int this_cpu = smp_processor_id();
+
+	BUG_ON(cpu >= nr_cpu_ids);
+
+	if (cpu == this_cpu)
+		kvm_hypercall0(id);
+	else
+		smp_call_function_single(cpu, do_trigger_event, (void *)&id, 1);
+}
+EXPORT_SYMBOL(muen_smp_trigger_event);
+
 int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
 		match_func func, void *match_data)
 {
