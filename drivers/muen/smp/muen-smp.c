@@ -183,6 +183,9 @@ static bool register_resource(
 		if (res->data.dev.ir_count)
 			cpu_list_add_entry(res);
 		break;
+	case MUEN_RES_EVENT:
+		cpu_list_add_entry(res);
+		break;
 	case MUEN_RES_VECTOR:
 		cpu_list_add_entry(res);
 
