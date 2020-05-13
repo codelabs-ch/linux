@@ -152,31 +152,6 @@ static void cpu_list_add_entry(const struct muen_resource_type *const res)
 }
 
 /*
- * Check if the given resource is already present in the list. If it is, remove
- * it and return true. Return false otherwise.
- */
-static bool
-cpu_list_remove_if_present(const struct muen_resource_type *const res)
-{
-	struct muen_cpu_affinity *entry;
-	bool result = false;
-
-	spin_lock(&affinity_list_lock);
-	list_for_each_entry(entry, &affinity_list, list) {
-		if (entry->res.kind == res->kind
-				&& muen_names_equal(&entry->res.name,
-						    res->name.data)) {
-			list_del(&entry->list);
-			kfree(entry);
-			result = true;
-			break;
-		}
-	}
-	spin_unlock(&affinity_list_lock);
-	return result;
-}
-
-/*
  * Allocate IRQ descriptor for given vector and register it with IRQ chip.
  */
 static void allocate_vector(const struct muen_resource_type *const res)
@@ -209,9 +184,7 @@ static bool register_resource(
 			cpu_list_add_entry(res);
 		break;
 	case MUEN_RES_VECTOR:
-		/* Register unique event vectors in CPU affinity list. */
-		if (!cpu_list_remove_if_present(res))
-			cpu_list_add_entry(res);
+		cpu_list_add_entry(res);
 
 		allocate_vector(res);
 		break;
