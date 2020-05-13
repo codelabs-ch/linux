@@ -488,6 +488,7 @@ free_and_exit:
 	muen_smp_free_res_affinity(result);
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(muen_smp_get_res_affinity);
 
 void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free)
 {
@@ -498,6 +499,7 @@ void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free)
 		kfree(entry);
 	}
 }
+EXPORT_SYMBOL(muen_smp_free_res_affinity);
 
 void __init muen_smp_init(void)
 {
