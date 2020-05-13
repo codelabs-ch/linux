@@ -34,4 +34,10 @@ int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
  */
 void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free);
 
+/*
+ * Trigger event on given CPU. Must not be called with IRQs disabled if the
+ * target cpu is not the current cpu.
+ */
+void muen_smp_trigger_event(const uint8_t id, const uint8_t cpu);
+
 #endif /* MUEN_SMP_H */
