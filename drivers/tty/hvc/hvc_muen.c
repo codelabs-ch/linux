@@ -17,8 +17,8 @@
 #include <linux/module.h>
 #include <linux/kvm_para.h>
 #include <linux/random.h>
-#include <muen/sinfo.h>
 #include <muen/writer.h>
+#include <muen/smp.h>
 
 #include "hvc_console.h"
 
@@ -82,12 +82,11 @@ module_exit(hvc_muen_exit);
 
 static int __init hvc_muen_console_init(void)
 {
+	int rc;
+	struct muen_cpu_affinity evt;
 	const u64 epoch = muen_get_sched_start();
-
 	const struct muen_resource_type *const
 		region = muen_get_resource(CHANNEL_NAME, MUEN_RES_MEMORY);
-	const struct muen_resource_type *const
-		evt = muen_get_resource(CHANNEL_NAME, MUEN_RES_EVENT);
 
 	if (!region) {
 		pr_err("hvc_muen: Unable to retrieve console channel %s\n",
@@ -95,17 +94,25 @@ static int __init hvc_muen_console_init(void)
 		return -EINVAL;
 	}
 
-	if (!evt) {
-		pr_err("hvc_muen: Unable to retrieve event number for console channel %s\n",
+	if (!muen_smp_one_match(&evt, CHANNEL_NAME, MUEN_RES_EVENT)) {
+		pr_err("hvc_muen: Unable to retrieve event data for console channel %s\n",
 		       CHANNEL_NAME);
 		return -EINVAL;
 	}
 
-	event_number = evt->data.number;
+	event_number = evt.res.data.number;
 	channel_size = region->data.mem.size;
-	pr_info("hvc_muen: Channel @ 0x%llx, size 0x%llx, event %d, epoch 0x%llx\n",
-		region->data.mem.address, region->data.mem.size, event_number,
-		epoch);
+	pr_info("hvc_muen: Channel @ 0x%llx, size 0x%llx, event %u, cpu %u, epoch 0x%llx\n",
+		region->data.mem.address, region->data.mem.size,
+		evt.res.data.number, evt.cpu, epoch);
+
+	/*
+	 * Pin to event CPU. Required because hvc_muen_put() runs with IRQs
+	 * disabled, so it is not possible to use smp_call_function_single() or
+	 * smp_call_on_cpu() to trigger an event on a remote CPU.
+	 */
+	rc = set_cpus_allowed_ptr(current, cpumask_of(evt.cpu));
+	BUG_ON(rc || smp_processor_id() != evt.cpu);
 
 	channel_out = (struct muchannel *)__va(region->data.mem.address);
 
@@ -116,7 +123,11 @@ static int __init hvc_muen_console_init(void)
 	return 0;
 }
 
-console_initcall(hvc_muen_console_init);
+/*
+ * Use early_initcall instead of console_initcall here to ensure hvc_muen is
+ * initialized only after the SMP affinity db is filled.
+ */
+early_initcall(hvc_muen_console_init);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
