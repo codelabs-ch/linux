@@ -100,6 +100,7 @@ static void process_input(struct muen_dev *input_dev,
 		break;
 	case MUEN_EV_PRESS:
 		key_press = true;
+		/* FALLTHROUGH */
 	case MUEN_EV_RELEASE:
 		if (info.keycode < BTN_LEFT)
 			dev = input_dev->kbd;
