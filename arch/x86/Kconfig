@@ -876,6 +876,7 @@ config MUEN_GUEST
 	select MUEN_PCI
 	select MUEN_CLKSRC
 	select MUEN_SMP
+	select PCI_MMCONFIG
 	default n
 	---help---
 	  This option enables support for guests running on the Muen
@@ -2608,7 +2609,7 @@ config PCI_BIOS
 # x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT
 	def_bool y
-	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC || PCI_GOMMCONFIG))
+	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC || PCI_GOMMCONFIG)) && !MUEN_PCI
 
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access" if X86_64
