@@ -878,7 +878,7 @@ config MUEN_GUEST
 	select MUEN_SMP
 	select PCI_MMCONFIG
 	default n
-	---help---
+	help
 	  This option enables support for guests running on the Muen
 	  Separation Kernel.
 
