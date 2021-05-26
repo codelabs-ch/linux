@@ -21,6 +21,7 @@
 #include <linux/stackprotector.h>
 #include <linux/smp.h>
 
+#include <asm/apic.h>
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
 #include <asm/realmode.h>
