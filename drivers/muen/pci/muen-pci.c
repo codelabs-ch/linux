@@ -21,6 +21,7 @@
 #include <linux/msi.h>
 #include <linux/pci.h>
 
+#include <asm/acpi.h>
 #include <asm/msidef.h>
 #include <asm/hw_irq.h>
 #include <asm/pci_x86.h>
