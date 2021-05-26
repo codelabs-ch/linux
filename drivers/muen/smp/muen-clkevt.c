@@ -17,6 +17,8 @@
 #include <asm/time.h>
 #include <asm/setup.h>
 #include <asm/irq_regs.h>
+#include <asm/idtentry.h>
+#include <asm/apic.h>
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -115,13 +117,12 @@ static void local_timer_interrupt(void)
 	evt->event_handler(evt);
 }
 
-__visible void __irq_entry smp_apic_timer_interrupt_muen(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_muen_timer_interrupt)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	entering_ack_irq();
+	ack_APIC_irq();
 	local_timer_interrupt();
-	exiting_irq();
 
 	set_irq_regs(old_regs);
 }
