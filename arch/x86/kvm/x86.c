@@ -2985,6 +2985,9 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	pvclock_flags = 0;
 	if (use_master_clock)
 		pvclock_flags |= PVCLOCK_TSC_STABLE_BIT;
+	else {
+		pvclock_flags |= PVCLOCK_TSC_STABLE_BIT;
+	}
 
 	vcpu->hv_clock.flags = pvclock_flags;
 
