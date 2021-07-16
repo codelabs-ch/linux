@@ -89,21 +89,22 @@ static void __init muen_init_IRQ(void)
 	init_ISA_irqs();
 }
 
+static unsigned long muen_get_tsc(void)
+{
+	return muen_get_tsc_khz();
+}
+
 static void __init muen_platform_setup(void)
 {
-	unsigned long lpj;
 	setup_clear_cpu_cap(X86_FEATURE_TSC);
-	cpu_khz = muen_get_tsc_khz();
-	tsc_khz = cpu_khz;
-
-	lpj = tsc_khz * 1000;
-	do_div(lpj, HZ);
-	loops_per_jiffy = lpj;
 
 	x86_init.irqs.intr_init	= muen_init_IRQ;
 #ifdef CONFIG_MUEN_PCI
 	x86_init.pci.arch_init	= muen_pci_init;
 #endif
+
+	x86_platform.calibrate_cpu = muen_get_tsc;
+	x86_platform.calibrate_tsc = muen_get_tsc;
 
 #ifdef CONFIG_MUEN_SMP
 	muen_smp_init();
