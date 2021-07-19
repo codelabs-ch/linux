@@ -293,6 +293,14 @@ static void notrace start_secondary(void *unused)
 	muen_setup_timer();
 	muen_register_resources();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
+
+	/*
+	 * Prevent tail call to cpu_startup_entry() because the stack protector
+	 * guard has been changed a couple of function calls up, in
+	 * boot_init_stack_canary() and must not be checked before tail calling
+	 * another function.
+	 */
+	prevent_tail_call_optimization();
 }
 
 static int do_boot_cpu(int cpu, struct task_struct *idle)
