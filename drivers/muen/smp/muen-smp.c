@@ -474,15 +474,19 @@ int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
 
 	INIT_LIST_HEAD(&result->list);
 
+	spin_lock(&affinity_list_lock);
 	list_for_each_entry(entry, &affinity_list, list) {
 		if (!func || func(entry, match_data)) {
 			copy = kmemdup(entry, sizeof(*entry), GFP_KERNEL);
-			if (!copy)
+			if (!copy) {
+				spin_unlock(&affinity_list_lock);
 				goto free_and_exit;
+			}
 			list_add_tail(&copy->list, &result->list);
 			count++;
 		}
 	}
+	spin_unlock(&affinity_list_lock);
 	return count;
 
 free_and_exit:
