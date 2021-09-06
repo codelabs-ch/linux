@@ -168,6 +168,11 @@ struct subject_info_type {
 void __init muen_sinfo_early_init(void);
 
 /*
+ * Setup Muen subject info data for given CPU.
+ */
+int muen_sinfo_setup(unsigned int cpu);
+
+/*
  * Return true if both names are equal.
  */
 bool muen_names_equal(const struct muen_name_type *const n1,
