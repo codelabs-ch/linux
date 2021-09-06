@@ -34,8 +34,8 @@
 
 #include "muschedinfo.h"
 
-static char subject_name[MAX_NAME_LENGTH + 1];
-static bool subject_name_unset = true;
+static DEFINE_PER_CPU(char [MAX_NAME_LENGTH + 1], subject_name);
+static DEFINE_PER_CPU(bool, subject_name_unset) = true;
 
 static unsigned long long sinfo_addr;
 static int __init setup_sinfo_addr(char *arg)
@@ -48,8 +48,8 @@ static int __init setup_sinfo_addr(char *arg)
 
 early_param("muen_sinfo", setup_sinfo_addr);
 
-static const struct subject_info_type *sinfo;
-static const struct scheduling_info_type *sched_info;
+static DEFINE_PER_CPU(const struct subject_info_type *, subject_info);
+static DEFINE_PER_CPU(const struct scheduling_info_type *, scheduling_info);
 
 uint8_t no_hash[HASH_LENGTH] = {0};
 
@@ -68,12 +68,31 @@ struct iterator {
 };
 
 /*
+ * Returns the sinfo base physical address for the calling CPU.
+ */
+static unsigned long long get_base_addr(unsigned int cpu)
+{
+	const unsigned long sinfo_page_size = roundup
+		(sizeof(struct subject_info_type),
+		 PAGE_SIZE);
+	const unsigned long sched_info_page_size = roundup
+		(sizeof(struct scheduling_info_type),
+		 PAGE_SIZE);
+
+	return sinfo_addr + (sinfo_page_size + sched_info_page_size)
+		* cpu;
+}
+
+/*
  * Iterate over all resources beginning at given start resource.  If the res
  * member of the iterator is NULL, the function (re)starts the iteration at the
  * first available resource.
  */
 static bool iterate_resources(struct iterator *const iter)
 {
+	const struct subject_info_type * const sinfo =
+		this_cpu_read(subject_info);
+
 	if (!muen_check_magic())
 		return false;
 
@@ -157,22 +176,29 @@ EXPORT_SYMBOL(muen_names_equal);
 
 bool muen_check_magic(void)
 {
+	const struct subject_info_type * const sinfo =
+		this_cpu_read(subject_info);
+
 	return sinfo->magic == MUEN_SUBJECT_INFO_MAGIC;
 }
 EXPORT_SYMBOL(muen_check_magic);
 
 const char *const muen_get_subject_name(void)
 {
+	const struct subject_info_type * const sinfo =
+		this_cpu_read(subject_info);
+	char *name = per_cpu(subject_name, smp_processor_id());
+
 	if (!muen_check_magic())
 		return NULL;
 
-	if (subject_name_unset)	{
-		memset(subject_name, 0, MAX_NAME_LENGTH + 1);
-		memcpy(subject_name, &sinfo->name.data, sinfo->name.length);
-		subject_name_unset = false;
+	if (this_cpu_read(subject_name_unset)) {
+		memset(name, 0, MAX_NAME_LENGTH + 1);
+		memcpy(name, &sinfo->name.data, sinfo->name.length);
+		this_cpu_write(subject_name_unset, false);
 	}
 
-	return subject_name;
+	return name;
 }
 EXPORT_SYMBOL(muen_get_subject_name);
 
@@ -219,12 +245,15 @@ uint64_t muen_get_tsc_khz(void)
 	if (!muen_check_magic())
 		return 0;
 
-	return sinfo->tsc_khz;
+	return this_cpu_read(subject_info)->tsc_khz;
 }
 EXPORT_SYMBOL(muen_get_tsc_khz);
 
 inline uint64_t muen_get_sched_start(void)
 {
+	const struct scheduling_info_type * const sched_info =
+		this_cpu_read(scheduling_info);
+
 	if (!muen_check_magic())
 		return 0;
 
@@ -234,6 +263,9 @@ EXPORT_SYMBOL(muen_get_sched_start);
 
 inline uint64_t muen_get_sched_end(void)
 {
+	const struct scheduling_info_type * const sched_info =
+		this_cpu_read(scheduling_info);
+
 	if (!muen_check_magic())
 		return 0;
 
@@ -246,42 +278,65 @@ void __init muen_sinfo_early_init(void)
 	const unsigned long sinfo_page_size = roundup
 		(sizeof(struct subject_info_type),
 		 PAGE_SIZE);
+	const unsigned long long base_addr = get_base_addr(smp_processor_id());
+	const struct subject_info_type * const sinfo =
+		(struct subject_info_type *)
+	    early_ioremap(base_addr, sizeof(struct subject_info_type));
+	const struct scheduling_info_type * const sched_info =
+		(struct scheduling_info_type *)
+		early_ioremap(base_addr + sinfo_page_size,
+			      sizeof(struct scheduling_info_type));
 
-	sinfo = (struct subject_info_type *)early_ioremap(sinfo_addr,
-			sizeof(struct subject_info_type));
-	sched_info = (struct scheduling_info_type *)early_ioremap(sinfo_addr +
-		sinfo_page_size, sizeof(struct scheduling_info_type));
+	per_cpu(subject_info, smp_processor_id()) = sinfo;
+	per_cpu(scheduling_info, smp_processor_id()) = sched_info;
 }
 
 static int __init muen_sinfo_init(void)
 {
-	void __iomem *early_sinfo = (void *)sinfo;
-	void __iomem *early_sched_info = (void *)sched_info;
+	int ret;
+	void __iomem *early_sinfo = (void *)this_cpu_read(subject_info);
+	void __iomem *early_sched_info = (void *)this_cpu_read(scheduling_info);
 	const unsigned long sinfo_page_size = roundup
 		(sizeof(struct subject_info_type),
 		 PAGE_SIZE);
-	sinfo = (struct subject_info_type *)ioremap_cache(sinfo_addr,
-			sizeof(struct subject_info_type));
+
+	ret = muen_sinfo_setup(smp_processor_id());
+	early_iounmap(early_sinfo, sizeof(struct subject_info_type));
+	early_iounmap(early_sched_info, sizeof(struct scheduling_info_type));
+	return ret;
+}
+
+int muen_sinfo_setup(unsigned int cpu)
+{
+	const unsigned long sinfo_page_size = roundup
+		(sizeof(struct subject_info_type),
+		 PAGE_SIZE);
+	const unsigned long long base_addr = get_base_addr(cpu);
+	const struct subject_info_type *sinfo = (struct subject_info_type *)
+		ioremap_cache(base_addr, sizeof(struct subject_info_type));
+	const struct scheduling_info_type *sched_info =
+		(struct scheduling_info_type *)
+		ioremap_cache(base_addr + sinfo_page_size,
+			      sizeof(struct scheduling_info_type));
+
+	per_cpu(subject_info, cpu) = sinfo;
 	if (!muen_check_magic()) {
 		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
 		return -EINVAL;
 	}
-	sched_info = (struct scheduling_info_type *)ioremap_cache(sinfo_addr +
-		sinfo_page_size, sizeof(struct scheduling_info_type));
+	per_cpu(scheduling_info, cpu) = sched_info;
 
-	early_iounmap(early_sinfo, sizeof(struct subject_info_type));
-	early_iounmap(early_sched_info, sizeof(struct scheduling_info_type));
-
-	pr_info("muen-sinfo: Subject information    @ 0x%016llx\n", sinfo_addr);
+	pr_info("muen-sinfo: Subject information    @ 0x%016llx\n", base_addr);
 	pr_info("muen-sinfo: Scheduling information @ 0x%016llx\n",
-		sinfo_addr + sinfo_page_size);
+		base_addr + sinfo_page_size);
 	pr_info("muen-sinfo: Subject name is '%s'\n", muen_get_subject_name());
 	pr_info("muen-sinfo: Subject exports %u resources\n",
-		sinfo->resource_count);
+		per_cpu(subject_info, cpu)->resource_count);
 	muen_for_each_resource(log_resource, NULL);
 
 	return 0;
 }
+EXPORT_SYMBOL(muen_sinfo_setup);
 
 console_initcall(muen_sinfo_init);
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
