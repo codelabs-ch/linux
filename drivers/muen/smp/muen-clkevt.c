@@ -29,10 +29,12 @@ struct subject_timed_event_type {
 	unsigned int event_nr :6;
 } __packed;
 
-static struct subject_timed_event_type *timer_page;
+static DEFINE_PER_CPU(struct subject_timed_event_type *, timer);
 
 static int muen_timer_shutdown(struct clock_event_device *const evt)
 {
+	struct subject_timed_event_type *timer_page = this_cpu_read(timer);
+
 	timer_page->tsc_trigger = ULLONG_MAX;
 	return 0;
 }
@@ -41,6 +43,7 @@ static int muen_timer_next_event(const unsigned long delta,
 				 struct clock_event_device *const evt)
 {
 	const uint64_t tsc_now = muen_get_sched_end();
+	struct subject_timed_event_type *timer_page = this_cpu_read(timer);
 
 	timer_page->tsc_trigger = tsc_now + delta;
 	return 0;
@@ -59,12 +62,18 @@ static DEFINE_PER_CPU(struct clock_event_device, muen_events);
 
 void muen_setup_timer(void)
 {
+	struct subject_timed_event_type *timer_page;
 	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
-
-	const struct muen_resource_type *const
-		region = muen_get_resource("timed_event", MUEN_RES_MEMORY);
+	const int cpu = smp_processor_id();
+	char mem_name[MAX_NAME_LENGTH + 1] = "timed_event";
+	const struct muen_resource_type *region;
 	const struct muen_resource_type *const
 		timer_evt = muen_get_resource("timer", MUEN_RES_EVENT);
+
+	if (nr_cpu_ids > 1)
+		snprintf(mem_name, sizeof(mem_name), "timed_event%d", cpu);
+
+	region = muen_get_resource(mem_name, MUEN_RES_MEMORY);
 
 	if (!region) {
 		pr_warn("muen-smp: Unable to retrieve Muen timed event region\n");
@@ -77,13 +86,12 @@ void muen_setup_timer(void)
 
 	pr_info("muen-smp: Using timed event region at address 0x%llx with event %u\n",
 		region->data.mem.address, timer_evt->data.number);
-	if (!timer_page)
-		timer_page = (struct subject_timed_event_type *)ioremap_cache
-			(region->data.mem.address, region->data.mem.size);
+	timer_page = (struct subject_timed_event_type *)ioremap_cache
+		(region->data.mem.address, region->data.mem.size);
 	timer_page->event_nr = timer_evt->data.number;
+	this_cpu_write(timer, timer_page);
 
-	pr_info("muen-smp: Setup timer for CPU#%u: %p\n",
-			smp_processor_id(), evt);
+	pr_info("muen-smp: Setup timer for CPU#%u: %p\n", cpu, evt);
 
 	memcpy(evt, &muen_clockevent, sizeof(*evt));
 
