@@ -19,18 +19,21 @@
 #include <linux/module.h>
 #include <muen/sinfo.h>
 
-uint64_t current_start = 0, counter = 0;
+static DEFINE_PER_CPU_ALIGNED(uint64_t, current_start) = 0;
+static DEFINE_PER_CPU_ALIGNED(uint64_t, counter) = 0;
 
 static u64 muen_cs_read(struct clocksource *arg)
 {
 	const uint64_t next_start = muen_get_sched_start();
 
-	if (next_start == current_start)
-		counter++;
-	else
-		counter = current_start = next_start;
+	if (next_start == this_cpu_read(current_start))
+		this_cpu_inc(counter);
+	else {
+		this_cpu_write(counter, next_start);
+		this_cpu_write(current_start, next_start);
+	}
 
-	return counter;
+	return this_cpu_read(counter);
 }
 
 static struct clocksource muen_cs = {
