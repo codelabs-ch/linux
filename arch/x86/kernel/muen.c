@@ -97,6 +97,7 @@ static unsigned long muen_get_tsc(void)
 static void __init muen_platform_setup(void)
 {
 	setup_clear_cpu_cap(X86_FEATURE_TSC);
+	tsc_khz = muen_get_tsc_khz();
 
 	x86_init.irqs.intr_init	= muen_init_IRQ;
 #ifdef CONFIG_MUEN_PCI
