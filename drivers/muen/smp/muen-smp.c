@@ -23,6 +23,7 @@
 
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
+#include <asm/realmode.h>
 #include <asm/spec-ctrl.h>
 #include <asm/fpu/internal.h>
 
