@@ -21,7 +21,7 @@
 #include <linux/msi.h>
 #include <linux/pci.h>
 
-#include <asm/acpi.h>
+#include <linux/acpi.h>
 #include <asm/msidef.h>
 #include <asm/hw_irq.h>
 #include <asm/pci_x86.h>
@@ -129,15 +129,9 @@ static struct irq_chip msi_chip = {
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 
-static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
-				 unsigned int dest, struct msi_msg *msg,
-				 u8 hpet_id, u16 handle)
+static void muen_msi_compose_msg(struct pci_dev *pdev, struct msi_msg *msg,
+				 unsigned int handle, unsigned int subhandle)
 {
-	int subhandle;
-
-	/* Set subhandle to offset from base IRQ */
-	subhandle = irq - pdev->irq;
-
 	msg->address_hi = MSI_ADDR_BASE_HI;
 	msg->address_lo =
 		MSI_ADDR_BASE_LO | MSI_ADDR_IR_EXT_INT |
@@ -152,9 +146,9 @@ static void muen_msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 }
 
 static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			      const unsigned int irq,
-			      const u16 handle)
+			      const unsigned int irq, const u16 handle)
 {
+	unsigned int subhandle;
 	struct msi_msg msg;
 	int ret;
 
@@ -162,9 +156,12 @@ static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	if (ret < 0)
 		return ret;
 
-	muen_msi_compose_msg(dev, irq, 0, &msg, -1, handle);
+	/* Subhandle is offset from base IRQ */
+	subhandle = irq - dev->irq;
+	muen_msi_compose_msg(dev, &msg, handle, subhandle);
 	pci_write_msi_msg(irq, &msg);
 
+	irq_set_status_flags(irq, IRQ_NO_BALANCING);
 	irq_set_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
 	return 0;
@@ -277,7 +274,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *msidesc;
 	int ret;
-	unsigned int irq, virq;
+	unsigned int irq, sinfo_irq;
 	struct muen_cpu_affinity affinity;
 	const struct muen_device_type *dev_data = NULL;
 
@@ -297,10 +294,15 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		goto error_free_affinity;
 	}
 
-	virq = dev_data->irq_start;
-	dev->irq = virq - ISA_IRQ_VECTOR(0);
+	sinfo_irq = dev_data->irq_start - ISA_IRQ_VECTOR(0);
+	if (sinfo_irq != dev->irq) {
+		dev_err(&dev->dev, "Device has invalid IRQ %u != %u\n", dev->irq, sinfo_irq);
+		ret = -EINVAL;
+		goto error_free_affinity;
+	}
+
 	if (dev->irq >= NR_IRQS_LEGACY) {
-		ret = muen_irq_alloc_descs(dev, virq, nvec);
+		ret = muen_irq_alloc_descs(dev, sinfo_irq, nvec);
 		if (ret < 0)
 			goto error_free_affinity;
 	}
@@ -432,10 +434,69 @@ int __init muen_pci_init(void)
 	/* Avoid ACPI interference */
 	acpi_noirq_set();
 
-	x86_msi.setup_msi_irqs   = muen_setup_msi_irqs;
-	x86_msi.teardown_msi_irq = muen_teardown_msi_irq;
-
 	return 0;
+}
+
+static int muen_msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
+				      int nvec)
+{
+	int type;
+
+	if (WARN_ON_ONCE(!dev_is_pci(dev)))
+		return -EINVAL;
+
+	if (first_msi_entry(dev)->msi_attrib.is_msix)
+		type = PCI_CAP_ID_MSIX;
+	else
+		type = PCI_CAP_ID_MSI;
+
+	return muen_setup_msi_irqs(to_pci_dev(dev), nvec, type);
+}
+
+static void muen_msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
+{
+	int i;
+	struct msi_desc *entry;
+	struct pci_dev *pdev;
+
+	if (WARN_ON_ONCE(!dev_is_pci(dev)))
+		return;
+
+	pdev = to_pci_dev(dev);
+
+	for_each_pci_msi_entry(entry, pdev) {
+		if (entry->irq)
+			for (i = 0; i < entry->nvec_used; i++)
+				muen_teardown_msi_irq(entry->irq + i);
+	}
+}
+
+static struct msi_domain_ops muen_pci_msi_domain_ops = {
+	.domain_alloc_irqs	= muen_msi_domain_alloc_irqs,
+	.domain_free_irqs	= muen_msi_domain_free_irqs,
+};
+
+static struct msi_domain_info muen_pci_msi_domain_info = {
+	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+			  MSI_FLAG_PCI_MSIX,
+	.ops		= &muen_pci_msi_domain_ops,
+	.chip		= &msi_chip,
+	.handler	= handle_edge_irq,
+	.handler_name	= "edge",
+};
+
+struct irq_domain * __init muen_create_pci_msi_domain(void)
+{
+	struct irq_domain *d = NULL;
+	struct fwnode_handle *fn;
+
+	fn = irq_domain_alloc_named_fwnode("Muen-PCI-MSI");
+	if (fn)
+		d = pci_msi_create_irq_domain(fn, &muen_pci_msi_domain_info, NULL);
+
+	BUG_ON(!d);
+
+	return d;
 }
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
