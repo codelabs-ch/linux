@@ -101,6 +101,7 @@ static void __init muen_platform_setup(void)
 
 	x86_init.irqs.intr_init	= muen_init_IRQ;
 #ifdef CONFIG_MUEN_PCI
+	x86_init.irqs.create_pci_msi_domain = muen_create_pci_msi_domain;
 	x86_init.pci.arch_init	= muen_pci_init;
 #endif
 
