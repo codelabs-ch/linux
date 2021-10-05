@@ -22,7 +22,6 @@
 #include <linux/pci.h>
 
 #include <linux/acpi.h>
-#include <asm/msidef.h>
 #include <asm/hw_irq.h>
 #include <asm/pci_x86.h>
 
@@ -130,23 +129,25 @@ static struct irq_chip msi_chip = {
 };
 
 static void muen_msi_compose_msg(struct pci_dev *pdev, struct msi_msg *msg,
-				 unsigned int handle, unsigned int subhandle)
+				 u32 handle, u32 subhandle)
 {
-	msg->address_hi = MSI_ADDR_BASE_HI;
-	msg->address_lo =
-		MSI_ADDR_BASE_LO | MSI_ADDR_IR_EXT_INT |
-		MSI_ADDR_IR_SHV |
-		MSI_ADDR_IR_INDEX1(handle) |
-		MSI_ADDR_IR_INDEX2(handle);
+	memset(msg, 0, sizeof(*msg));
+	msg->address_hi = X86_MSI_BASE_ADDRESS_HIGH;
 
-	msg->data = subhandle;
+	msg->arch_addr_lo.dmar_base_address = X86_MSI_BASE_ADDRESS_LOW;
+	msg->arch_addr_lo.dmar_subhandle_valid = true;
+	msg->arch_addr_lo.dmar_format = true;
+	msg->arch_addr_lo.dmar_index_0_14 = handle & 0x7FFF;
+	msg->arch_addr_lo.dmar_index_15 = !!(handle & 0x8000);
+
+	msg->arch_data.dmar_subhandle = subhandle;
 
 	dev_info(&pdev->dev, "Programming MSI address 0x%x with IRTE handle %d/%d\n",
 		 msg->address_lo, handle, subhandle);
 }
 
 static int muen_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			      const unsigned int irq, const u16 handle)
+			      const unsigned int irq, const u32 handle)
 {
 	unsigned int subhandle;
 	struct msi_msg msg;
