@@ -175,6 +175,12 @@ config IXP4XX_IRQ
 config MADERA_IRQ
 	tristate
 
+config MUENSK_IRQ
+	bool
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_IRQ_CHIP
+
 config IRQ_MIPS_CPU
 	bool
 	select GENERIC_IRQ_CHIP

@@ -1376,6 +1376,14 @@ config PARAVIRT_TIME_ACCOUNTING
 
 	  If in doubt, say N here.
 
+config MUEN_GUEST
+	bool "Muen SK Guest support"
+	select MUEN_SINFO
+	default n
+	help
+	  This option enables support for guests running on the Muen
+	  Separation Kernel.
+
 config KEXEC
 	depends on PM_SLEEP_SMP
 	select KEXEC_CORE
