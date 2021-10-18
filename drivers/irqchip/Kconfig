@@ -7,6 +7,7 @@ config IRQCHIP
 
 config ARM_GIC
 	bool
+	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
@@ -34,6 +35,7 @@ config GIC_NON_BANKED
 config ARM_GIC_V3
 	bool
 	select GENERIC_IRQ_MULTI_HANDLER
+	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	select PARTITION_PERCPU
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
@@ -58,6 +60,7 @@ config ARM_GIC_V3_ITS_FSL_MC
 
 config ARM_NVIC
 	bool
+	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_CHIP
 
@@ -166,6 +169,12 @@ config IXP4XX_IRQ
 
 config MADERA_IRQ
 	tristate
+
+config MUENSK_IRQ
+	bool
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_IRQ_CHIP
 
 config IRQ_MIPS_CPU
 	bool

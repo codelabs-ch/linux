@@ -138,6 +138,13 @@ config ARCH_MESON
 	  This enables support for the arm64 based Amlogic SoCs
 	  such as the s905, S905X/D, S912, A113X/D or S905X/D2
 
+config ARCH_MUEN
+	bool "Muen SK based systems"
+	select MUENSK_IRQ
+	help
+	  This enables support for the ARMv8 based Muen SK
+	  implementation.
+
 config ARCH_MVEBU
 	bool "Marvell EBU SoC Family"
 	select ARMADA_AP806_SYSCON

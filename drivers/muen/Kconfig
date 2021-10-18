@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Muen driver support"
+	depends on ARCH_MUEN
+
+config MUEN_CHANNEL
+	bool "Muen SK communication channel"
+	default y
+	help
+	  The Muen SK channel allows a unidirectional communication channel
+	  between separated subjects (i.e. readonly or writeonly character
+	  device on the platform bus, restricted to device tree config and
+	  additional configuration in the separation kernel itself needed).
+
+endmenu
