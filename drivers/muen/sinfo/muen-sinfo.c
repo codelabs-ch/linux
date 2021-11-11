@@ -296,9 +296,6 @@ static int __init muen_sinfo_init(void)
 	int ret;
 	void __iomem *early_sinfo = (void *)this_cpu_read(subject_info);
 	void __iomem *early_sched_info = (void *)this_cpu_read(scheduling_info);
-	const unsigned long sinfo_page_size = roundup
-		(sizeof(struct subject_info_type),
-		 PAGE_SIZE);
 
 	ret = muen_sinfo_setup(smp_processor_id());
 	early_iounmap(early_sinfo, sizeof(struct subject_info_type));
