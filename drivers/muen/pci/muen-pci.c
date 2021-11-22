@@ -42,6 +42,67 @@ static void muen_eoi_level(struct irq_data *irq_data)
 	kvm_hypercall0(event_nr);
 }
 
+static bool muen_match_virq(const struct muen_cpu_affinity *const affinity,
+		void *data)
+{
+	const uint8_t *const virq = data;
+
+	return affinity->res.kind == MUEN_RES_DEVICE
+		&& affinity->res.data.dev.irq_start <= *virq
+		&& affinity->res.data.dev.irq_start +
+		   affinity->res.data.dev.ir_count > *virq;
+}
+
+static bool muen_get_virq_affinity(const uint8_t virq, uint8_t *cpu)
+{
+	struct muen_cpu_affinity affinity;
+
+	if (!muen_smp_one_match_func(&affinity, muen_match_virq, (void *)&virq))
+		return false;
+
+	*cpu = affinity.cpu;
+	return true;
+}
+
+static void muen_irq_enable(struct irq_data *d)
+{
+	struct irq_chip *chip;
+	uint8_t cpu;
+	const uint8_t virq = d->irq + ISA_IRQ_VECTOR(0);
+	struct irq_desc *desc;
+
+	if (!muen_get_virq_affinity(virq, &cpu)) {
+		pr_err("muen-pci: Error retrieving CPU affinity for vector %u, not enabling IRQ %u\n",
+		       virq, d->irq);
+		return;
+	}
+
+	if (!cpu_online(cpu)) {
+		pr_err("muen-pci: CPU %u for IRQ %u not online, not enabling\n",
+		       cpu, d->irq);
+		return;
+	}
+
+	/*
+	 * Check that descriptor is (still) present on associated CPU.
+	 * Re-create it if not. S3 suspend code migrates active IRQs away from
+	 * APs to BSP before suspending, which does not work for us (see
+	 * fixup_irqs() in arch/x86/kernel/irq.c).
+	 */
+	if (per_cpu(vector_irq, cpu)[virq] == VECTOR_UNUSED) {
+		desc = irq_to_desc(d->irq);
+		if (!desc) {
+			pr_err("muen-pci: No descriptor for vector %u, not enabling IRQ %u\n",
+			       virq, d->irq);
+			return;
+		}
+		per_cpu(vector_irq, cpu)[virq] = irq_to_desc(d->irq);
+	}
+
+	chip = irq_data_get_irq_chip(d);
+	chip->irq_unmask(d);
+}
+
 /**
  * IRQ chip for PCI interrupts
  */
@@ -50,6 +111,7 @@ static struct irq_chip pci_chip = {
 	.irq_ack     = noop,
 	.irq_mask    = noop,
 	.irq_unmask  = noop,
+	.irq_enable  = muen_irq_enable,
 	.irq_eoi     = muen_eoi_level,
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
@@ -62,6 +124,7 @@ static struct irq_chip msi_chip = {
 	.irq_ack     = noop,
 	.irq_mask    = pci_msi_mask_irq,
 	.irq_unmask  = pci_msi_unmask_irq,
+	.irq_enable  = muen_irq_enable,
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -130,12 +193,18 @@ static int muen_irq_alloc_descs(struct pci_dev *dev, const unsigned int virq,
 
 /*
  * Free IRQ descriptor and unset per-core vector.
- * Assumes the caller to be the CPU owning the IRQ.
  */
 static void muen_irq_free_desc(const unsigned int irq, const unsigned int virq)
 {
+	uint8_t cpu;
+	bool res;
+
 	irq_free_descs(irq, 1);
-	__this_cpu_write(vector_irq[virq], VECTOR_UNUSED);
+
+	res = muen_get_virq_affinity(virq, &cpu);
+	WARN_ON(!res);
+	if (res)
+		per_cpu(vector_irq, cpu)[virq] = VECTOR_UNUSED;
 }
 
 static bool
@@ -165,22 +234,6 @@ unsigned int muen_devres_data(const struct muen_cpu_affinity *const affinity,
 		}
 	}
 	return irq_count;
-}
-
-static void
-muen_setup_cpu_vector_irqs(const struct muen_cpu_affinity *const affinity)
-{
-	unsigned int i;
-	struct muen_cpu_affinity *entry;
-	struct muen_device_type *dev;
-
-	list_for_each_entry(entry, &affinity->list, list) {
-		dev = &entry->res.data.dev;
-		for (i = 0; i < dev->ir_count; i++)
-			per_cpu(vector_irq, entry->cpu)[dev->irq_start + i] =
-				irq_to_desc(dev->irq_start
-						- ISA_IRQ_VECTOR(0) + i);
-	}
 }
 
 /**
@@ -263,7 +316,6 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		irq++;
 	}
 
-	muen_setup_cpu_vector_irqs(&affinity);
 	muen_smp_free_res_affinity(&affinity);
 	return 0;
 
@@ -335,7 +387,6 @@ static int muen_enable_irq(struct pci_dev *dev)
 
 	event_nr = ret;
 	irq_set_chip_data(dev->irq, (void *)event_nr);
-	muen_setup_cpu_vector_irqs(&affinity);
 	irq_set_chip_and_handler_name(dev->irq, &pci_chip,
 			handle_fasteoi_irq, "fasteoi");
 	dev_info(&dev->dev, "PCI IRQ %d (EOI event: %lu)\n", dev->irq,
