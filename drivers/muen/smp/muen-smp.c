@@ -510,18 +510,13 @@ muen_match_name_kind(const struct muen_cpu_affinity *const affinity, void *data)
 		&& muen_names_equal(&affinity->res.name, match->name);
 }
 
-bool muen_smp_one_match(struct muen_cpu_affinity *const result,
-		const char *const name, const enum muen_resource_kind kind)
+bool muen_smp_one_match_func(struct muen_cpu_affinity *const result,
+		match_func func, void *match_data)
 {
 	unsigned int affinity_count;
 	struct muen_cpu_affinity affinity, *first;
-	const struct match_data match = {
-		.name = name,
-		.kind = kind,
-	};
 
-	affinity_count = muen_smp_get_res_affinity(&affinity,
-			muen_match_name_kind, (void *)&match);
+	affinity_count = muen_smp_get_res_affinity(&affinity, func, match_data);
 	if (affinity_count == 1) {
 		first = list_first_entry(&affinity.list,
 				struct muen_cpu_affinity, list);
@@ -530,6 +525,19 @@ bool muen_smp_one_match(struct muen_cpu_affinity *const result,
 
 	muen_smp_free_res_affinity(&affinity);
 	return affinity_count == 1;
+}
+EXPORT_SYMBOL(muen_smp_one_match_func);
+
+bool muen_smp_one_match(struct muen_cpu_affinity *const result,
+		const char *const name, const enum muen_resource_kind kind)
+{
+	const struct match_data match = {
+		.name = name,
+		.kind = kind,
+	};
+
+	return muen_smp_one_match_func(result, muen_match_name_kind,
+			(void *)&match);
 }
 EXPORT_SYMBOL(muen_smp_one_match);
 
