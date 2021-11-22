@@ -30,6 +30,16 @@ int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
 		match_func func, void *match_data);
 
 /*
+ * Fill in resource data for resource matched by given match function. Only one
+ * match is expected and the caller must allocate the memory for the result.
+ *
+ * Returns true if exactly one resource match is found, false otherwise. If
+ * true, result contains the requested resource information.
+ */
+bool muen_smp_one_match_func(struct muen_cpu_affinity *const result,
+		match_func func, void *match_data);
+
+/*
  * Fill in resource data for resource identified by given name and resource
  * kind. Only one match is expected and the caller must allocate the memory for
  * the result.
