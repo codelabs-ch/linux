@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/kvm_para.h>
 #include <linux/pm.h>
+#include <linux/suspend.h>
 
 #include <asm/i8259.h>
 #include <asm/x86_init.h>
@@ -30,6 +31,27 @@
 #include <muen/sinfo.h>
 #include <muen/pci.h>
 #include <muen/smp.h>
+
+static int muen_suspend_enter(suspend_state_t state)
+{
+	const struct muen_resource_type *const
+		event = muen_get_resource("enter_s3", MUEN_RES_EVENT);
+
+	muen_smp_set_suspend_flag();
+	pr_info("muen-pm: Triggering transition to ACPI S3\n");
+
+	if (!event)
+		pr_warn("muen-pm: No enter_s3 event, s2ram will fail\n");
+	else
+		kvm_hypercall0(event->data.number);
+
+	return 0;
+}
+
+static const struct platform_suspend_ops muen_suspend_ops = {
+	.valid = suspend_valid_only_mem,
+	.enter = muen_suspend_enter,
+};
 
 static void muen_machine_restart(char *__unused)
 {
@@ -117,6 +139,8 @@ static void __init muen_platform_setup(void)
 	legacy_pic = &null_legacy_pic;
 
 	machine_ops = muen_machine_ops;
+
+	suspend_set_ops(&muen_suspend_ops);
 }
 
 static uint32_t __init muen_platform(void)

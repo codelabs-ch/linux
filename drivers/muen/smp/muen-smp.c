@@ -46,6 +46,9 @@ struct muen_ipi_config {
 };
 static DEFINE_PER_CPU(struct muen_ipi_config, muen_ipis);
 
+/* S3 suspend flag */
+static bool s3_has_suspended = false;
+
 static unsigned int muen_get_evt_vec(const char *const name,
 				     const enum muen_resource_kind kind)
 {
@@ -227,7 +230,8 @@ static void smp_callin(void)
 {
 	const int cpuid = smp_processor_id();
 
-	muen_sinfo_setup(cpuid);
+	if (!s3_has_suspended)
+		muen_sinfo_setup(cpuid);
 	muen_smp_store_cpu_info(cpuid);
 
 	set_cpu_sibling_map(raw_smp_processor_id());
@@ -290,16 +294,28 @@ static void notrace start_secondary(void *unused)
 	x86_cpuinit.setup_percpu_clockev();
 
 	wmb();
-	muen_setup_events();
+
+	if (!s3_has_suspended) {
+		muen_setup_events();
+		muen_register_resources();
+	}
 	muen_setup_timer();
-	muen_register_resources();
+
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 static int do_boot_cpu(int cpu, struct task_struct *idle)
 {
+	int rc;
 	unsigned long boot_error = 0;
 	unsigned long timeout;
+
+	/*
+	 * Pin function to BSP for S3 wakeup path.
+	 * Only BSP has events to wakeup halted SMs.
+	 */
+	rc = set_cpus_allowed_ptr(current, cpumask_of(0));
+	BUG_ON(rc);
 
 	idle->thread.sp = (unsigned long)task_pt_regs(idle);
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_rw(cpu);
@@ -337,6 +353,11 @@ static int do_boot_cpu(int cpu, struct task_struct *idle)
 	}
 
 	return boot_error;
+}
+
+void muen_smp_set_suspend_flag(void)
+{
+	s3_has_suspended = true;
 }
 
 int muen_cpu_up(unsigned int cpu, struct task_struct *tidle)
@@ -382,6 +403,21 @@ int muen_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 out:
 	return ret;
+}
+
+static void muen_smp_play_dead(void)
+{
+	const struct muen_resource_type *const
+		event = muen_get_resource("cpu_down", MUEN_RES_EVENT);
+
+	play_dead_common();
+
+	if (!event) {
+		pr_warn("muen-smp: No cpu_down event, halting CPU\n");
+		stop_this_cpu(NULL);
+	}
+
+	kvm_hypercall0(event->data.number);
 }
 
 static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
@@ -548,6 +584,7 @@ void __init muen_smp_init(void)
 {
 	smp_ops.smp_prepare_cpus = muen_smp_prepare_cpus;
 	smp_ops.cpu_up = muen_cpu_up;
+	smp_ops.play_dead = muen_smp_play_dead,
 	smp_ops.send_call_func_ipi = muen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = muen_smp_send_call_function_single_ipi;
 	smp_ops.smp_send_reschedule = muen_smp_send_reschedule;

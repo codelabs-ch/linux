@@ -15,6 +15,12 @@ struct muen_cpu_affinity {
 	struct list_head list;
 };
 
+/*
+ * Set suspend flag true. If the flag is set, the CPU affinity DB will not be
+ * touched during CPU boot up. Used for S3 resume path
+ */
+void muen_smp_set_suspend_flag(void);
+
 /* CPU resource affinity match function. */
 typedef bool (*match_func)(const struct muen_cpu_affinity *const aff,
 		void *match_data);

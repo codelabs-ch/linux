@@ -116,16 +116,23 @@ static struct irq_chip pci_chip = {
 	.flags       = IRQCHIP_SKIP_SET_WAKE,
 };
 
+static int muen_msi_set_affinity(struct irq_data *data, const struct cpumask
+		*dest, bool force)
+{
+	return 0;
+}
+
 /**
  * IRQ chip for PCI MSI/MSI-x interrupts
  */
 static struct irq_chip msi_chip = {
-	.name        = "Muen-MSI",
-	.irq_ack     = noop,
-	.irq_mask    = pci_msi_mask_irq,
-	.irq_unmask  = pci_msi_unmask_irq,
-	.irq_enable  = muen_irq_enable,
-	.flags       = IRQCHIP_SKIP_SET_WAKE,
+	.name             = "Muen-MSI",
+	.irq_ack          = noop,
+	.irq_set_affinity = muen_msi_set_affinity,
+	.irq_mask         = pci_msi_mask_irq,
+	.irq_unmask       = pci_msi_unmask_irq,
+	.irq_enable       = muen_irq_enable,
+	.flags            = IRQCHIP_SKIP_SET_WAKE,
 };
 
 static void muen_msi_compose_msg(struct pci_dev *pdev, struct msi_msg *msg,

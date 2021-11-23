@@ -1268,7 +1268,11 @@ static int __init acpi_bus_init(void)
 	pr_info("Interpreter enabled\n");
 
 	/* Initialize sleep structures */
-	acpi_sleep_init();
+	/* TODO: overwrites our own PM handling
+	 *       introduce muen-pm as loadable driver (late)
+	 *       to avoid this.
+	 */
+	//acpi_sleep_init();
 
 	/*
 	 * Get the system interrupt model and evaluate \_PIC.
