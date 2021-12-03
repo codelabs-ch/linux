@@ -111,7 +111,7 @@ static int __init hvc_muen_console_init(void)
 	 * disabled, so it is not possible to use smp_call_function_single() or
 	 * smp_call_on_cpu() to trigger an event on a remote CPU.
 	 */
-	rc = set_cpus_allowed_ptr(current, cpumask_of(0));
+	rc = set_cpus_allowed_ptr(current, cpumask_of(evt.cpu));
 	BUG_ON(rc || smp_processor_id() != evt.cpu);
 
 	channel_out = (struct muchannel *)__va(region->data.mem.address);
