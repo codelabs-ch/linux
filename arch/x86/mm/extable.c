@@ -60,10 +60,15 @@ __visible bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 				    unsigned long error_code,
 				    unsigned long fault_addr)
 {
+	u64 xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 	regs->ip = ex_fixup_addr(fixup);
 
-	WARN_ONCE(1, "Bad FPU state detected at %pB, reinitializing FPU registers.",
-		  (void *)instruction_pointer(regs));
+	WARN_ONCE(1, "Bad FPU state detected at %pB, reinitializing FPU registers. trapnr %d\n",
+		(void *)instruction_pointer(regs), trapnr);
+	printk(KERN_ERR "Bad FPU: xstate (di) 0x%lx, cr4 0x%lx, xcr0 0x%llx\n",
+		regs->di, __read_cr4(), xcr0);
+	print_hex_dump(KERN_ERR, "fpu(bad)", DUMP_PREFIX_OFFSET, 16, 1,
+		(void *)regs->di, fpu_kernel_xstate_size, 1);
 
 	__restore_fpregs_from_fpstate(&init_fpstate, xfeatures_mask_fpstate());
 	return true;
