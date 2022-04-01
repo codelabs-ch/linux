@@ -257,10 +257,9 @@ static void notrace start_secondary(void *unused)
 	 */
 	cr4_init();
 
-	load_current_idt();
-	cpu_init();
+	cpu_init_secondary();
+	rcu_cpu_starting(raw_smp_processor_id());
 	x86_cpuinit.early_percpu_clock_init();
-	preempt_disable();
 	smp_callin();
 
 	/* otherwise gcc will move up smp_processor_id before the cpu_init */
@@ -279,8 +278,8 @@ static void notrace start_secondary(void *unused)
 	 * from seeing a half valid vector space.
 	 */
 	lock_vector_lock();
-	lapic_online();
 	set_cpu_online(smp_processor_id(), true);
+	lapic_online();
 	unlock_vector_lock();
 	cpu_set_state_online(smp_processor_id());
 	x86_platform.nmi_init();
@@ -288,22 +287,13 @@ static void notrace start_secondary(void *unused)
 	/* enable local interrupts */
 	local_irq_enable();
 
-	/* to prevent fake stack check failure in clock setup */
-	boot_init_stack_canary();
+	x86_cpuinit.setup_percpu_clockev();
 
 	wmb();
 	muen_setup_events();
 	muen_setup_timer();
 	muen_register_resources();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
-
-	/*
-	 * Prevent tail call to cpu_startup_entry() because the stack protector
-	 * guard has been changed a couple of function calls up, in
-	 * boot_init_stack_canary() and must not be checked before tail calling
-	 * another function.
-	 */
-	prevent_tail_call_optimization();
 }
 
 static int do_boot_cpu(int cpu, struct task_struct *idle)
