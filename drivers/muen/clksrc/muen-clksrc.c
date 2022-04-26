@@ -14,13 +14,16 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/timer.h>
 #include <linux/clocksource.h>
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <muen/sinfo.h>
 
-static DEFINE_PER_CPU_ALIGNED(uint64_t, current_start) = 0;
-static DEFINE_PER_CPU_ALIGNED(uint64_t, counter) = 0;
+static DEFINE_PER_CPU_ALIGNED(uint64_t, current_start);
+static DEFINE_PER_CPU_ALIGNED(uint64_t, counter);
+
+static struct cyc2ns_data muen_cyc2ns __ro_after_init;
 
 static u64 muen_cs_read(struct clocksource *arg)
 {
@@ -44,16 +47,36 @@ static struct clocksource muen_cs = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-inline u64 muen_sched_clock_read(void)
+inline u64 muen_clock_read(void)
 {
 	return muen_cs_read(&muen_cs);
 }
-EXPORT_SYMBOL(muen_sched_clock_read);
+EXPORT_SYMBOL(muen_clock_read);
+
+static u64 notrace muen_sched_clock_read(void)
+{
+	u64 ns;
+
+	ns = muen_cyc2ns.cyc2ns_offset;
+	ns += mul_u64_u32_shr(muen_clock_read(), muen_cyc2ns.cyc2ns_mul,
+			      muen_cyc2ns.cyc2ns_shift);
+	return ns;
+}
 
 static int __init muen_cs_init(void)
 {
-	clocksource_register_khz(&muen_cs, muen_get_tsc_khz());
+	struct cyc2ns_data *d = &muen_cyc2ns;
+	u64 tsc_now = muen_clock_read();
+
+	clocks_calc_mult_shift(&d->cyc2ns_mul, &d->cyc2ns_shift,
+			       muen_get_tsc_khz(), NSEC_PER_MSEC, 0);
+	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
+					   d->cyc2ns_shift);
+
+	pr_info("muen-clksrc: Using clock offset of %llu ns\n", d->cyc2ns_offset);
+
 	paravirt_set_sched_clock(muen_sched_clock_read);
+	clocksource_register_khz(&muen_cs, muen_get_tsc_khz());
 	return 0;
 }
 
