@@ -42,15 +42,23 @@ static int muen_suspend_enter(suspend_state_t state)
 
 	if (!event)
 		pr_warn("muen-pm: No enter_s3 event, s2ram will fail\n");
-	else
+	else {
+		x86_platform.save_sched_clock_state();
 		kvm_hypercall0(event->data.number);
+	}
 
 	return 0;
+}
+
+static void muen_suspend_wake(void)
+{
+	x86_platform.restore_sched_clock_state();
 }
 
 static const struct platform_suspend_ops muen_suspend_ops = {
 	.valid = suspend_valid_only_mem,
 	.enter = muen_suspend_enter,
+	.wake = muen_suspend_wake,
 };
 
 static void muen_machine_restart(char *__unused)

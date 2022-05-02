@@ -14,16 +14,18 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/x86_init.h>
 #include <asm/timer.h>
 #include <linux/clocksource.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/module.h>
 #include <muen/sinfo.h>
 
 static DEFINE_PER_CPU_ALIGNED(uint64_t, current_end);
 static DEFINE_PER_CPU_ALIGNED(uint64_t, counter);
 
-static struct cyc2ns_data muen_cyc2ns __ro_after_init;
+static struct cyc2ns_data muen_cyc2ns;
 
 static u64 muen_cs_read(struct clocksource *arg)
 {
@@ -71,6 +73,31 @@ static u64 notrace muen_sched_clock_read(void)
 	return ns;
 }
 
+static unsigned long long cyc2ns_suspend;
+
+static void muen_save_sched_clock_state(void)
+{
+	cyc2ns_suspend = sched_clock();
+	pr_info("muen-clksrc: NS before suspend %llu\n", sched_clock());
+}
+
+static void muen_restore_sched_clock_state(void)
+{
+	struct cyc2ns_data *d = &muen_cyc2ns;
+	unsigned long long offset;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	muen_cyc2ns.cyc2ns_offset = 0;
+	offset = cyc2ns_suspend - sched_clock();
+	d->cyc2ns_offset = offset;
+
+	local_irq_restore(flags);
+
+	pr_info("muen-clksrc: NS after resume %llu\n", sched_clock());
+}
+
 static int __init muen_cs_init(void)
 {
 	struct cyc2ns_data *d = &muen_cyc2ns;
@@ -82,6 +109,9 @@ static int __init muen_cs_init(void)
 					   d->cyc2ns_shift);
 
 	pr_info("muen-clksrc: Using clock offset of %llu ns\n", d->cyc2ns_offset);
+
+	x86_platform.save_sched_clock_state = muen_save_sched_clock_state;
+	x86_platform.restore_sched_clock_state = muen_restore_sched_clock_state;
 
 	paravirt_set_sched_clock(muen_sched_clock_read);
 	clocksource_register_khz(&muen_cs, muen_get_tsc_khz());
