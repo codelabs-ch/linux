@@ -2315,7 +2315,8 @@ static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 
 static inline int gtod_is_based_on_tsc(int mode)
 {
-	return mode == VDSO_CLOCKMODE_TSC || mode == VDSO_CLOCKMODE_HVCLOCK;
+	return mode == VDSO_CLOCKMODE_TSC || mode == VDSO_CLOCKMODE_HVCLOCK
+		|| mode == VDSO_CLOCKMODE_MVCLOCK;
 }
 
 static void kvm_track_tsc_matching(struct kvm_vcpu *vcpu)
@@ -2461,7 +2462,8 @@ static inline bool kvm_check_tsc_unstable(void)
 	 * TSC is marked unstable when we're running on Hyper-V,
 	 * 'TSC page' clocksource is good.
 	 */
-	if (pvclock_gtod_data.clock.vclock_mode == VDSO_CLOCKMODE_HVCLOCK)
+	if (pvclock_gtod_data.clock.vclock_mode == VDSO_CLOCKMODE_HVCLOCK ||
+		pvclock_gtod_data.clock.vclock_mode == VDSO_CLOCKMODE_MVCLOCK)
 		return false;
 #endif
 	return check_tsc_unstable();
@@ -2623,6 +2625,10 @@ static inline u64 vgettsc(struct pvclock_clock *clock, u64 *tsc_timestamp,
 			/* TSC page invalid */
 			*mode = VDSO_CLOCKMODE_NONE;
 		}
+		break;
+	case VDSO_CLOCKMODE_MVCLOCK:
+		*mode = VDSO_CLOCKMODE_MVCLOCK;
+		*tsc_timestamp = get_cycles();
 		break;
 	case VDSO_CLOCKMODE_TSC:
 		*mode = VDSO_CLOCKMODE_TSC;
@@ -4335,7 +4341,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (unlikely(vcpu->cpu != cpu) || kvm_check_tsc_unstable()) {
 		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
 				rdtsc() - vcpu->arch.last_host_tsc;
-		if (tsc_delta < 0)
+		if (tsc_delta < 0 && pvclock_gtod_data.clock.vclock_mode != VDSO_CLOCKMODE_MVCLOCK)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 
 		if (kvm_check_tsc_unstable()) {

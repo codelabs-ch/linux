@@ -19,6 +19,7 @@
 #include <asm/msr.h>
 #include <asm/pvclock.h>
 #include <clocksource/hyperv_timer.h>
+#include <muen/sinfo.h>
 
 #define __vdso_data (VVAR(_vdso_data))
 #define __timens_vdso_data (TIMENS(_vdso_data))
@@ -54,6 +55,11 @@ extern struct pvclock_vsyscall_time_info pvclock_page
 
 #ifdef CONFIG_HYPERV_TIMER
 extern struct ms_hyperv_tsc_page hvclock_page
+	__attribute__((visibility("hidden")));
+#endif
+
+#ifdef CONFIG_MUEN_MVCLOCK
+extern struct muen_scheduling_info_type mvclock_page
 	__attribute__((visibility("hidden")));
 #endif
 
@@ -242,6 +248,13 @@ static u64 vread_hvclock(void)
 }
 #endif
 
+#ifdef CONFIG_MUEN_MVCLOCK
+static u64 vread_mvclock(void)
+{
+	return mvclock_page.tsc_schedule_end;
+}
+#endif
+
 static inline u64 __arch_get_hw_counter(s32 clock_mode,
 					const struct vdso_data *vd)
 {
@@ -263,6 +276,12 @@ static inline u64 __arch_get_hw_counter(s32 clock_mode,
 	if (clock_mode == VDSO_CLOCKMODE_HVCLOCK) {
 		barrier();
 		return vread_hvclock();
+	}
+#endif
+#ifdef CONFIG_MUEN_MVCLOCK
+	if (clock_mode == VDSO_CLOCKMODE_MVCLOCK) {
+		barrier();
+		return vread_mvclock();
 	}
 #endif
 	return U64_MAX;

@@ -20,31 +20,39 @@
 #include <linux/module.h>
 #include <muen/sinfo.h>
 
-static DEFINE_PER_CPU_ALIGNED(uint64_t, current_start);
+static DEFINE_PER_CPU_ALIGNED(uint64_t, current_end);
 static DEFINE_PER_CPU_ALIGNED(uint64_t, counter);
 
 static struct cyc2ns_data muen_cyc2ns __ro_after_init;
 
 static u64 muen_cs_read(struct clocksource *arg)
 {
-	const uint64_t next_start = muen_get_sched_start();
+	const uint64_t next_end = muen_get_sched_end();
 
-	if (next_start == this_cpu_read(current_start))
+	if (next_end == this_cpu_read(current_end))
 		this_cpu_inc(counter);
 	else {
-		this_cpu_write(counter, next_start);
-		this_cpu_write(current_start, next_start);
+		this_cpu_write(counter, next_end);
+		this_cpu_write(current_end, next_end);
 	}
 
 	return this_cpu_read(counter);
 }
 
+static int muen_cs_enable(struct clocksource *cs)
+{
+	vclocks_set_used(VDSO_CLOCKMODE_MVCLOCK);
+	return 0;
+}
+
 static struct clocksource muen_cs = {
-	.name	= "muen-clksrc",
-	.rating	= 400,
-	.read	= muen_cs_read,
-	.mask	= CLOCKSOURCE_MASK(64),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.name			= "muen-clksrc",
+	.rating			= 400,
+	.read			= muen_cs_read,
+	.mask			= CLOCKSOURCE_MASK(64),
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
+	.enable			= muen_cs_enable,
+	.vdso_clock_mode	= VDSO_CLOCKMODE_MVCLOCK,
 };
 
 inline u64 muen_clock_read(void)
