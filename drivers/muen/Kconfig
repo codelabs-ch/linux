@@ -24,6 +24,9 @@ config MUEN_CLKSRC
 	  This driver implements a clocksource based on scheduling information
 	  exported by the sinfo API.
 
+config MUEN_MVCLOCK
+	def_bool MUEN_CLKSRC
+
 config MUEN_PCI
 	bool "Muen PCI driver"
 	depends on MUEN_SINFO && PCI_MSI
