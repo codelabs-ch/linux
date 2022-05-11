@@ -32,8 +32,6 @@
 #include <linux/module.h>
 #include <muen/sinfo.h>
 
-#include "muschedinfo.h"
-
 static DEFINE_PER_CPU(char [MAX_NAME_LENGTH + 1], subject_name);
 static DEFINE_PER_CPU(bool, subject_name_unset) = true;
 
@@ -49,7 +47,7 @@ static int __init setup_sinfo_addr(char *arg)
 early_param("muen_sinfo", setup_sinfo_addr);
 
 static DEFINE_PER_CPU(const struct subject_info_type *, subject_info);
-static DEFINE_PER_CPU(const struct scheduling_info_type *, scheduling_info);
+static DEFINE_PER_CPU(const struct muen_scheduling_info_type *, scheduling_info);
 
 uint8_t no_hash[HASH_LENGTH] = {0};
 
@@ -76,7 +74,7 @@ static unsigned long long get_base_addr(unsigned int cpu)
 		(sizeof(struct subject_info_type),
 		 PAGE_SIZE);
 	const unsigned long sched_info_page_size = roundup
-		(sizeof(struct scheduling_info_type),
+		(sizeof(struct muen_scheduling_info_type),
 		 PAGE_SIZE);
 
 	return sinfo_addr + (sinfo_page_size + sched_info_page_size)
@@ -251,25 +249,25 @@ EXPORT_SYMBOL(muen_get_tsc_khz);
 
 inline uint64_t muen_get_sched_start(void)
 {
-	const struct scheduling_info_type * const sched_info =
+	const struct muen_scheduling_info_type * const sched_info =
 		this_cpu_read(scheduling_info);
 
 	if (!muen_check_magic())
 		return 0;
 
-	return atomic64_read(&sched_info->tsc_schedule_start);
+	return sched_info->tsc_schedule_start;
 }
 EXPORT_SYMBOL(muen_get_sched_start);
 
 inline uint64_t muen_get_sched_end(void)
 {
-	const struct scheduling_info_type * const sched_info =
+	const struct muen_scheduling_info_type * const sched_info =
 		this_cpu_read(scheduling_info);
 
 	if (!muen_check_magic())
 		return 0;
 
-	return atomic64_read(&sched_info->tsc_schedule_end);
+	return sched_info->tsc_schedule_end;
 }
 EXPORT_SYMBOL(muen_get_sched_end);
 
@@ -282,10 +280,10 @@ void __init muen_sinfo_early_init(void)
 	const struct subject_info_type * const sinfo =
 		(struct subject_info_type *)
 	    early_ioremap(base_addr, sizeof(struct subject_info_type));
-	const struct scheduling_info_type * const sched_info =
-		(struct scheduling_info_type *)
+	const struct muen_scheduling_info_type * const sched_info =
+		(struct muen_scheduling_info_type *)
 		early_ioremap(base_addr + sinfo_page_size,
-			      sizeof(struct scheduling_info_type));
+			      sizeof(struct muen_scheduling_info_type));
 
 	per_cpu(subject_info, smp_processor_id()) = sinfo;
 	per_cpu(scheduling_info, smp_processor_id()) = sched_info;
@@ -299,7 +297,7 @@ static int __init muen_sinfo_init(void)
 
 	ret = muen_sinfo_setup(smp_processor_id());
 	early_iounmap(early_sinfo, sizeof(struct subject_info_type));
-	early_iounmap(early_sched_info, sizeof(struct scheduling_info_type));
+	early_iounmap(early_sched_info, sizeof(struct muen_scheduling_info_type));
 	return ret;
 }
 
@@ -311,10 +309,10 @@ int muen_sinfo_setup(unsigned int cpu)
 	const unsigned long long base_addr = get_base_addr(cpu);
 	const struct subject_info_type *sinfo = (struct subject_info_type *)
 		ioremap_cache(base_addr, sizeof(struct subject_info_type));
-	const struct scheduling_info_type *sched_info =
-		(struct scheduling_info_type *)
+	const struct muen_scheduling_info_type *sched_info =
+		(struct muen_scheduling_info_type *)
 		ioremap_cache(base_addr + sinfo_page_size,
-			      sizeof(struct scheduling_info_type));
+			      sizeof(struct muen_scheduling_info_type));
 
 	per_cpu(subject_info, cpu) = sinfo;
 	if (!muen_check_magic()) {
