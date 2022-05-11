@@ -16,6 +16,8 @@
 #include <linux/ptrace.h>
 #include <linux/time_namespace.h>
 
+#include <muen/sinfo.h>
+
 #include <asm/pvclock.h>
 #include <asm/vgtod.h>
 #include <asm/proto.h>
@@ -215,6 +217,10 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 		if (tsc_pg && vclock_was_used(VDSO_CLOCKMODE_HVCLOCK))
 			return vmf_insert_pfn(vma, vmf->address,
 					virt_to_phys(tsc_pg) >> PAGE_SHIFT);
+	} else if (sym_offset == image->sym_mvclock_page) {
+		if (vclock_was_used(VDSO_CLOCKMODE_MVCLOCK))
+			return vmf_insert_pfn(vma, vmf->address,
+					muen_get_schedinfo_page_bsp() >> PAGE_SHIFT);
 	} else if (sym_offset == image->sym_timens_page) {
 		struct page *timens_page = find_timens_vvar_page(vma);
 
