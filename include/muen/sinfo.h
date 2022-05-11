@@ -256,4 +256,9 @@ struct muen_scheduling_info_type {
 	volatile uint64_t tsc_schedule_end;
 } __packed;
 
+/*
+ * Return physical address of BSP scheduling info page.
+ */
+uint64_t muen_get_schedinfo_page_bsp(void);
+
 #endif /* MUEN_SINFO_H */
