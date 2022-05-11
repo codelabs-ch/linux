@@ -333,6 +333,16 @@ int muen_sinfo_setup(unsigned int cpu)
 }
 EXPORT_SYMBOL(muen_sinfo_setup);
 
+uint64_t muen_get_schedinfo_page_bsp(void)
+{
+	const unsigned long sinfo_page_size = roundup
+		(sizeof(struct subject_info_type),
+		 PAGE_SIZE);
+	const unsigned long long base_addr = get_base_addr(0);
+
+	return base_addr + sinfo_page_size;
+}
+
 console_initcall(muen_sinfo_init);
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
