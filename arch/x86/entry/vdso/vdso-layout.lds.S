@@ -16,7 +16,7 @@ SECTIONS
 	 * segment.
 	 */
 
-	vvar_start = . - 4 * PAGE_SIZE;
+	vvar_start = . - 5 * PAGE_SIZE;
 	vvar_page  = vvar_start;
 
 	/* Place all vvars at the offsets in asm/vvar.h. */
@@ -26,7 +26,8 @@ SECTIONS
 
 	pvclock_page = vvar_start + PAGE_SIZE;
 	hvclock_page = vvar_start + 2 * PAGE_SIZE;
-	timens_page  = vvar_start + 3 * PAGE_SIZE;
+	mvclock_page = vvar_start + 3 * PAGE_SIZE;
+	timens_page  = vvar_start + 4 * PAGE_SIZE;
 
 #undef _ASM_X86_VVAR_H
 	/* Place all vvars in timens too at the offsets in asm/vvar.h. */
