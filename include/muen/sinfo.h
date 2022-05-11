@@ -245,4 +245,15 @@ uint64_t muen_get_sched_start(void);
  */
 uint64_t muen_get_sched_end(void);
 
+/*
+ * Scheduling info struct, provides scheduling information to subjects at
+ * runtime. tsc_schedule_start specifies the tick value of the minor frame
+ * start, while tsc_schedule_end specifies the tick value of the minor
+ * frame end.
+ */
+struct muen_scheduling_info_type {
+	volatile uint64_t tsc_schedule_start;
+	volatile uint64_t tsc_schedule_end;
+} __packed;
+
 #endif /* MUEN_SINFO_H */
