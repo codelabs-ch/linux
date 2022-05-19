@@ -2629,6 +2629,8 @@ static inline u64 vgettsc(struct pvclock_clock *clock, u64 *tsc_timestamp,
 	case VDSO_CLOCKMODE_MVCLOCK:
 		*mode = VDSO_CLOCKMODE_MVCLOCK;
 		*tsc_timestamp = get_cycles();
+		v = (*tsc_timestamp - clock->cycle_last) &
+			clock->mask;
 		break;
 	case VDSO_CLOCKMODE_TSC:
 		*mode = VDSO_CLOCKMODE_TSC;
