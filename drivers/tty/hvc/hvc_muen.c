@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/kvm_para.h>
 #include <linux/random.h>
+#include <linux/io.h>
 #include <muen/writer.h>
 #include <muen/smp.h>
 
@@ -76,6 +77,7 @@ static void __exit hvc_muen_exit(void)
 		hvc_remove(hvc_muen_dev);
 
 	muen_channel_deactivate(channel_out);
+	iounmap(channel_out);
 }
 
 module_exit(hvc_muen_exit);
@@ -114,7 +116,9 @@ static int __init hvc_muen_console_init(void)
 	rc = set_cpus_allowed_ptr(current, cpumask_of(evt.cpu));
 	BUG_ON(rc || smp_processor_id() != evt.cpu);
 
-	channel_out = (struct muchannel *)__va(region->data.mem.address);
+	channel_out = (struct muchannel *)
+		ioremap_cache(region->data.mem.address,
+			      region->data.mem.size);
 
 	muen_channel_init_writer(channel_out, 1, 1, channel_size,
 				 epoch);
