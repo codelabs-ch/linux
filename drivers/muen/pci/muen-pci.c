@@ -309,7 +309,7 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	}
 
 	irq = dev->irq;
-	list_for_each_entry(msidesc, dev_to_msi_list(&dev->dev), list) {
+	msi_for_each_desc(msidesc, &dev->dev, MSI_DESC_NOTASSOCIATED) {
 		ret = muen_setup_msi_irq(dev, msidesc, irq,
 					 dev_data->irte_start);
 		if (ret < 0)
@@ -446,10 +446,7 @@ static int muen_msi_domain_alloc_irqs(struct irq_domain *domain, struct device *
 	if (WARN_ON_ONCE(!dev_is_pci(dev)))
 		return -EINVAL;
 
-	if (first_msi_entry(dev)->msi_attrib.is_msix)
-		type = PCI_CAP_ID_MSIX;
-	else
-		type = PCI_CAP_ID_MSI;
+	type = to_pci_dev(dev)->msix_enabled ? PCI_CAP_ID_MSIX : PCI_CAP_ID_MSI;
 
 	return muen_setup_msi_irqs(to_pci_dev(dev), nvec, type);
 }
@@ -465,7 +462,7 @@ static void muen_msi_domain_free_irqs(struct irq_domain *domain, struct device *
 
 	pdev = to_pci_dev(dev);
 
-	for_each_pci_msi_entry(entry, pdev) {
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {
 		if (entry->irq)
 			for (i = 0; i < entry->nvec_used; i++)
 				muen_teardown_msi_irq(entry->irq + i);
