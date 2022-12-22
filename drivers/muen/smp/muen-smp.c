@@ -20,13 +20,14 @@
 #include <linux/irq.h>
 #include <linux/stackprotector.h>
 #include <linux/smp.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/apic.h>
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
 #include <asm/realmode.h>
 #include <asm/spec-ctrl.h>
-#include <asm/fpu/internal.h>
+#include <asm/fpu/api.h>
 
 #include <muen/smp.h>
 
