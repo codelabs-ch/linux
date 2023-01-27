@@ -136,11 +136,12 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
 	/*
 	 * Not defined in KVM:
-	 *
-	 * EVMCS1_FIELD(0x00006402, exit_io_instruction_ecx,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
-	 * EVMCS1_FIELD(0x00006404, exit_io_instruction_esi,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
+	 */
+	EVMCS1_FIELD(EOI_EXIT_BITMAP0, exit_io_instruction_ecx,
+		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+	EVMCS1_FIELD(EOI_EXIT_BITMAP1, exit_io_instruction_esi,
+		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+	/*
 	 * EVMCS1_FIELD(0x00006406, exit_io_instruction_esi,
 	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
 	 * EVMCS1_FIELD(0x00006408, exit_io_instruction_eip,

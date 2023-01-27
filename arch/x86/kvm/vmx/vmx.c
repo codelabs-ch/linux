@@ -5329,6 +5329,48 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 	return kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
 }
 
+static void nested_vm_increment_rip(uint32_t instr_len)
+{
+	u16 clean_field;
+	int offset = get_evmcs_offset(GUEST_RIP, &clean_field);
+	struct hv_enlightened_vmcs *l3_evmcs;
+	const uint64_t evmcs_addr = vmcs_read64(VMCS_LINK_POINTER);
+	uint64_t guest_rip;
+
+	if (!evmcs_addr) {
+		pr_err("*** L3 eVMCS address not set\n");
+		return;
+	}
+
+	l3_evmcs = (struct hv_enlightened_vmcs *)__va(evmcs_addr);
+	guest_rip = *(u64 *)((char *)l3_evmcs + offset);
+	guest_rip += instr_len;
+	pr_err("*** New L3 RIP: 0x%llx", guest_rip);
+	*(u64 *)((char *)l3_evmcs + offset) = guest_rip;
+	l3_evmcs->hv_clean_fields &= ~clean_field;
+}
+
+static int handle_nested_exit(struct kvm_vcpu *vcpu)
+{
+	gpa_t gpa;
+	int ret;
+	uint32_t instr_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
+	uint64_t instr[2];
+	instr[0] = vmcs_read64(EOI_EXIT_BITMAP0);
+	instr[1] = vmcs_read64(EOI_EXIT_BITMAP1);
+
+	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
+	if (gpa == 0xfec00000)
+		pr_err("***handle_nested_exit: 0x%llx, len 0x%x 0x%llx%llx",
+				gpa, instr_len, instr[0], instr[1]);
+	ret = kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, (void *)instr, instr_len);
+
+	if (ret)
+		nested_vm_increment_rip(instr_len);
+
+	return ret;
+}
+
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
 {
 	if (KVM_BUG_ON(!enable_vnmi, vcpu->kvm))
@@ -5597,6 +5639,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_LDTR_TR]		      = handle_desc,
 	[EXIT_REASON_EPT_VIOLATION]	      = handle_ept_violation,
 	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
+	[EXIT_REASON_NESTED_EXIT]           = handle_nested_exit,
 	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
 	[EXIT_REASON_MWAIT_INSTRUCTION]	      = kvm_emulate_mwait,
 	[EXIT_REASON_MONITOR_TRAP_FLAG]       = handle_monitor_trap,
