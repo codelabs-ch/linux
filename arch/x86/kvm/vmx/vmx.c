@@ -5329,6 +5329,35 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 	return kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
 }
 
+/*
+ * Decode the given instruction and check if it contains unsupported memory
+ * operands:
+ *  - Memory source for writes
+ *  - Memory target for reads
+ */
+static void nested_vm_check_instruction(struct kvm_vcpu *vcpu, bool is_read,
+		void *insn, int insn_len)
+{
+	int ret;
+	struct x86_emulate_ctxt *ctxt;
+	ret = x86_decode_emulated_instruction(vcpu, EMULTYPE_PF, insn, insn_len);
+	if (ret != EMULATION_OK) {
+		pr_err("%s: Unable to decode/emulate instruction len 0x%x %*ph",
+				__func__, insn_len, insn_len, insn);
+		return;
+	}
+
+	ctxt = vcpu->arch.emulate_ctxt;
+
+	if (is_read && ctxt->dst.type == OP_MEM)
+		pr_err("%s: Read with unsupported dst operand %d\n", __func__,
+				ctxt->dst.type);
+
+	if (!is_read && ctxt->src.type == OP_MEM)
+		pr_err("%s: Write with unsupported src operand %d\n", __func__,
+				ctxt->src.type);
+}
+
 static void nested_vm_increment_rip(uint32_t instr_len)
 {
 	u16 clean_field;
@@ -5354,6 +5383,7 @@ static int handle_nested_exit(struct kvm_vcpu *vcpu)
 {
 	gpa_t gpa;
 	int ret;
+	unsigned long exit_quali;
 	uint32_t instr_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 	uint64_t instr[2];
 	instr[0] = vmcs_read64(EOI_EXIT_BITMAP0);
@@ -5367,6 +5397,9 @@ static int handle_nested_exit(struct kvm_vcpu *vcpu)
 
 	if (ret)
 		nested_vm_increment_rip(instr_len);
+
+	exit_quali = vmcs_readl(EXIT_QUALIFICATION);
+	nested_vm_check_instruction(vcpu, (exit_quali & 1), (void *)instr, instr_len);
 
 	return ret;
 }
