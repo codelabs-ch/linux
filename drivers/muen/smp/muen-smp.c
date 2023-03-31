@@ -470,7 +470,7 @@ int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &affinity_list, list) {
 		if (!func || func(entry, match_data)) {
-			copy = kmemdup(entry, sizeof(*entry), GFP_KERNEL);
+			copy = kmemdup(entry, sizeof(*entry), GFP_ATOMIC);
 			if (!copy) {
 				rcu_read_unlock();
 				goto free_and_exit;
