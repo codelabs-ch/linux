@@ -150,7 +150,7 @@ static void cpu_list_add_entry(const struct muen_resource_type *const res)
 	entry->cpu = this_cpu;
 
 	spin_lock(&affinity_list_lock);
-	list_add_tail(&entry->list, &affinity_list);
+	list_add_tail_rcu(&entry->list, &affinity_list);
 	spin_unlock(&affinity_list_lock);
 }
 
@@ -467,19 +467,19 @@ int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
 
 	INIT_LIST_HEAD(&result->list);
 
-	spin_lock(&affinity_list_lock);
-	list_for_each_entry(entry, &affinity_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, &affinity_list, list) {
 		if (!func || func(entry, match_data)) {
 			copy = kmemdup(entry, sizeof(*entry), GFP_KERNEL);
 			if (!copy) {
-				spin_unlock(&affinity_list_lock);
+				rcu_read_unlock();
 				goto free_and_exit;
 			}
 			list_add_tail(&copy->list, &result->list);
 			count++;
 		}
 	}
-	spin_unlock(&affinity_list_lock);
+	rcu_read_unlock();
 	return count;
 
 free_and_exit:
