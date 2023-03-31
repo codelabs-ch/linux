@@ -227,7 +227,6 @@ static void smp_callin(void)
 {
 	const int cpuid = smp_processor_id();
 
-	muen_sinfo_setup(cpuid);
 	muen_smp_store_cpu_info(cpuid);
 
 	set_cpu_sibling_map(raw_smp_processor_id());
@@ -359,6 +358,7 @@ int muen_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	/* the FPU context is blank, nobody can own it */
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 
+	muen_sinfo_setup(cpu);
 	common_cpu_up(cpu, tidle);
 
 	err = do_boot_cpu(cpu, tidle);
