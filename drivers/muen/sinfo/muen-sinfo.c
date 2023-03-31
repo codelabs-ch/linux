@@ -279,7 +279,7 @@ void __init muen_sinfo_early_init(void)
 	const unsigned long long base_addr = get_base_addr(smp_processor_id());
 	const struct subject_info_type * const sinfo =
 		(struct subject_info_type *)
-	    early_ioremap(base_addr, sizeof(struct subject_info_type));
+		early_ioremap(base_addr, sizeof(struct subject_info_type));
 	const struct muen_scheduling_info_type * const sched_info =
 		(struct muen_scheduling_info_type *)
 		early_ioremap(base_addr + sinfo_page_size,
