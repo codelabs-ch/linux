@@ -62,43 +62,49 @@ static struct clock_event_device muen_clockevent = {
 
 static DEFINE_PER_CPU(struct clock_event_device, muen_events);
 
-void muen_setup_timer(void)
+void muen_setup_timer_page(unsigned int cpu)
 {
 	struct subject_timed_event_type *timer_page;
-	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
-	const int cpu = smp_processor_id();
 	char mem_name[MAX_NAME_LENGTH + 1] = "timed_event";
 	const struct muen_resource_type *region;
-	const struct muen_resource_type *const
-		timer_evt = muen_get_resource("timer", MUEN_RES_EVENT);
+	uint64_t addr;
 
 	if (nr_cpu_ids > 1)
-		snprintf(mem_name, sizeof(mem_name), "timed_event%d", cpu);
+		snprintf(mem_name, sizeof(mem_name), "timed_event%d", 0);
 
 	region = muen_get_resource(mem_name, MUEN_RES_MEMORY);
+	BUG_ON(!region);
+	BUG_ON(region->data.mem.size != PAGE_SIZE);
 
-	if (!region) {
-		pr_warn("muen-smp: Unable to retrieve Muen timed event region\n");
-		return;
-	}
-	if (!timer_evt) {
-		pr_warn("muen-smp: Unable to retrieve Muen timer event\n");
-		return;
-	}
+	addr = region->data.mem.address + (cpu * PAGE_SIZE);
 
-	pr_info("muen-smp: Using timed event region at address 0x%llx with event %u\n",
-		region->data.mem.address, timer_evt->data.number);
+	pr_info("muen-smp: Using timed event region at address 0x%llx for CPU#%u\n",
+		addr, cpu);
 	timer_page = (struct subject_timed_event_type *)ioremap_cache
-		(region->data.mem.address, region->data.mem.size);
+		(addr, region->data.mem.size);
+	per_cpu(timer, cpu) = timer_page;
+}
+
+void muen_setup_timer_event(void)
+{
+	struct subject_timed_event_type *timer_page = this_cpu_read(timer);
+	const struct muen_resource_type *const
+		timer_evt = muen_get_resource("timer", MUEN_RES_EVENT);
+	BUG_ON(!timer_evt);
+
+	pr_info("muen-smp: Using timed event %u for CPU#%u\n",
+		timer_evt->data.number, smp_processor_id());
 	timer_page->event_nr = timer_evt->data.number;
-	this_cpu_write(timer, timer_page);
+}
 
-	pr_info("muen-smp: Setup timer for CPU#%u: %p\n", cpu, evt);
+void muen_register_clockevent_dev(void)
+{
+	const unsigned int cpu = smp_processor_id();
+	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
 
+	pr_info("muen-smp: Registering timer for CPU#%u\n", cpu);
 	memcpy(evt, &muen_clockevent, sizeof(*evt));
-
-	evt->cpumask = cpumask_of(smp_processor_id());
-
+	evt->cpumask = cpumask_of(cpu);
 	clockevents_config_and_register(evt,
 			muen_get_tsc_khz() * 1000, 1, UINT_MAX);
 }
