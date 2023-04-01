@@ -14,5 +14,16 @@
  * GNU General Public License for more details.
  */
 
-/* Setup per-CPU timer */
-void muen_setup_timer(void);
+/*
+ * Setup timer page for given CPU
+ *
+ * This function uses ioremap_cache so it cannot be called from atomic
+ * context, therefore it must be called by the BSP only.
+ */
+void muen_setup_timer_page(unsigned int cpu);
+
+/* Setup timer event for calling CPU */
+void muen_setup_timer_event(void);
+
+/* Register clockevents for calling CPU */
+void muen_register_clockevent_dev(void);
