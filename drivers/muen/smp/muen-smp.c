@@ -290,7 +290,8 @@ static void notrace start_secondary(void *unused)
 
 	wmb();
 	muen_setup_events();
-	muen_setup_timer();
+	muen_setup_timer_event();
+	muen_register_clockevent_dev();
 	muen_register_resources();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
@@ -359,6 +360,7 @@ int muen_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 
 	muen_sinfo_setup(cpu);
+	muen_setup_timer_page(cpu);
 	common_cpu_up(cpu, tidle);
 
 	err = do_boot_cpu(cpu, tidle);
@@ -395,7 +397,9 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 	pr_info("CPU0: ");
 	print_cpu_info(&cpu_data(0));
 
-	muen_setup_timer();
+	muen_setup_timer_page(0);
+	muen_setup_timer_event();
+	muen_register_clockevent_dev();
 	muen_register_resources();
 
 	/* In the non-SMP case, verify timer vector only */
