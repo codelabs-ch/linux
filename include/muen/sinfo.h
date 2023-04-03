@@ -173,6 +173,11 @@ void __init muen_sinfo_early_init(void);
 int muen_sinfo_setup(unsigned int cpu);
 
 /*
+ * Log resources of the calling CPU.
+ */
+void muen_sinfo_log_resources(void);
+
+/*
  * Return true if both names are equal.
  */
 bool muen_names_equal(const struct muen_name_type *const n1,
