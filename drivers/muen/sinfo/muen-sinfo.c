@@ -325,13 +325,18 @@ int muen_sinfo_setup(unsigned int cpu)
 	pr_info("muen-sinfo: Scheduling information @ 0x%016llx\n",
 		base_addr + sinfo_page_size);
 	pr_info("muen-sinfo: Subject name is '%s'\n", muen_get_subject_name());
-	pr_info("muen-sinfo: Subject exports %u resources\n",
-		per_cpu(subject_info, cpu)->resource_count);
-	muen_for_each_resource(log_resource, NULL);
 
 	return 0;
 }
 EXPORT_SYMBOL(muen_sinfo_setup);
+
+void muen_sinfo_log_resources(void)
+{
+	pr_info("muen-sinfo: Subject exports %u resources\n",
+		per_cpu(subject_info, smp_processor_id())->resource_count);
+	muen_for_each_resource(log_resource, NULL);
+}
+EXPORT_SYMBOL(muen_sinfo_log_resources);
 
 uint64_t muen_get_schedinfo_page_bsp(void)
 {
