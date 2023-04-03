@@ -293,6 +293,7 @@ static void notrace start_secondary(void *unused)
 	muen_setup_timer_event();
 	muen_register_clockevent_dev();
 	muen_register_resources();
+	muen_sinfo_log_resources();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
@@ -397,6 +398,7 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 	pr_info("CPU0: ");
 	print_cpu_info(&cpu_data(0));
 
+	muen_sinfo_log_resources();
 	muen_setup_timer_page(0);
 	muen_setup_timer_event();
 	muen_register_clockevent_dev();
