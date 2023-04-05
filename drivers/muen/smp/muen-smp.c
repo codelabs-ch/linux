@@ -454,7 +454,10 @@ static void do_trigger_event(void *data)
 
 void muen_smp_trigger_event(const uint8_t id, const uint8_t cpu)
 {
-	const unsigned int this_cpu = smp_processor_id();
+	unsigned int this_cpu;
+
+	preempt_disable();
+	this_cpu = smp_processor_id();
 
 	BUG_ON(cpu >= nr_cpu_ids);
 
@@ -462,6 +465,8 @@ void muen_smp_trigger_event(const uint8_t id, const uint8_t cpu)
 		kvm_hypercall0(id);
 	else
 		smp_call_function_single(cpu, do_trigger_event, (void *)&id, 1);
+
+	preempt_enable();
 }
 EXPORT_SYMBOL(muen_smp_trigger_event);
 
