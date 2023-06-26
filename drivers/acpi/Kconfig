@@ -105,6 +105,7 @@ config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
 	depends on ACPI_SYSTEM_POWER_STATES_SUPPORT
+	depends on !MUEN_GUEST
 	default y
 
 config ACPI_REV_OVERRIDE_POSSIBLE
