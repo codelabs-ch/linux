@@ -131,4 +131,3 @@ const __initconst struct hypervisor_x86 x86_hyper_muen = {
 	.type		    = X86_HYPER_MUEN,
 	.init.init_platform = muen_platform_setup,
 };
-EXPORT_SYMBOL(x86_hyper_muen);
