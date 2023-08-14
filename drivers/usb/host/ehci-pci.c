@@ -343,7 +343,6 @@ done:
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_PM
 
 /* suspend/resume, section 4.3 */
 
@@ -401,15 +400,17 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	if (usb_is_intel_switchable_ehci(pdev))
 		ehci_enable_xhci_companion();
 
+#ifdef	CONFIG_PM
 	if (ehci_resume(hcd, hibernated) != 0)
 		(void) ehci_pci_reinit(ehci, pdev);
+#endif
 	return 0;
 }
 
-#else
+#ifndef	CONFIG_PM
 
 #define ehci_suspend		NULL
-#define ehci_pci_resume		NULL
+
 #endif	/* CONFIG_PM */
 
 static struct hc_driver __read_mostly ehci_pci_hc_driver;
