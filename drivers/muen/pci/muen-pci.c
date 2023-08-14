@@ -463,9 +463,11 @@ static void muen_msi_domain_free_irqs(struct irq_domain *domain, struct device *
 	pdev = to_pci_dev(dev);
 
 	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {
-		if (entry->irq)
+		if (entry->irq) {
 			for (i = 0; i < entry->nvec_used; i++)
 				muen_teardown_msi_irq(entry->irq + i);
+			entry->irq = 0;
+		}
 	}
 }
 
@@ -476,7 +478,8 @@ static struct msi_domain_ops muen_pci_msi_domain_ops = {
 
 static struct msi_domain_info muen_pci_msi_domain_info = {
 	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-			  MSI_FLAG_PCI_MSIX,
+			  MSI_FLAG_PCI_MSIX | MSI_FLAG_FREE_MSI_DESCS |
+			  MSI_FLAG_DEV_SYSFS,
 	.ops		= &muen_pci_msi_domain_ops,
 	.chip		= &msi_chip,
 	.handler	= handle_edge_irq,
