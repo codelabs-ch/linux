@@ -100,7 +100,7 @@ static void process_input(struct muen_dev *input_dev,
 		break;
 	case MUEN_EV_PRESS:
 		key_press = true;
-		/* FALLTHROUGH */
+		fallthrough;
 	case MUEN_EV_RELEASE:
 		if (info.keycode < BTN_LEFT)
 			dev = input_dev->kbd;
@@ -142,7 +142,7 @@ static irqreturn_t handle_muen_input_int(int rq, void *dev_id)
 			break;
 		case MUCHANNEL_INCOMPATIBLE_INTERFACE:
 			pr_err("muen-input: Incompatible channel interface\n");
-			/* fall through */
+			fallthrough;
 		case MUCHANNEL_NO_DATA:
 		case MUCHANNEL_INACTIVE:
 		default:
