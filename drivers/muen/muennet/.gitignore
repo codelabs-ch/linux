@@ -1,0 +1,10 @@
+*.o
+*~
+*.ko
+Module.*
+*.cmd
+.tmp_versions
+modules.order
+*.mod.c
+*.mod
+muennet_cfg

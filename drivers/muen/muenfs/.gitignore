@@ -1,0 +1,12 @@
+*.o
+*~
+*.ko
+Module.*
+*.cmd
+.tmp_versions
+modules.order
+*.mod.c
+*.mod
+test/muenfs-example
+test/muenfs-marker
+test/muenfs-test

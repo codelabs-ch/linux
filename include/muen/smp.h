@@ -3,11 +3,6 @@
 
 #include <muen/sinfo.h>
 
-/*
- * Initialize SMP on Muen SK.
- */
-void __init muen_smp_init(void);
-
 /* Resource to CPU affinity information */
 struct muen_cpu_affinity {
 	uint8_t cpu;

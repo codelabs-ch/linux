@@ -5,3 +5,5 @@ obj-$(CONFIG_MUEN_CLKSRC)	+= clksrc/
 obj-$(CONFIG_MUEN_PCI)		+= pci/
 obj-$(CONFIG_MUEN_INPUT)	+= input/
 obj-$(CONFIG_MUEN_SMP)		+= smp/
+obj-$(CONFIG_MUEN_FS)		+= muenfs/
+obj-$(CONFIG_MUEN_NET)		+= muennet/

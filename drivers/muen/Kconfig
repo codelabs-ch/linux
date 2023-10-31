@@ -51,4 +51,20 @@ config MUEN_SMP
 	help
 	  SMP support driver for Muen Linux.
 
+config MUEN_FS
+	bool "Muen FS driver"
+	depends on MUEN_SMP
+	default n
+	help
+	  The Muen FS driver provides a virtual file system that facilitates
+	  user-space access to shared memory channels provided by the Muen kernel.
+
+config MUEN_NET
+	bool "Muen network interface driver"
+	depends on MUEN_SMP
+	default n
+	help
+	  The Muen network interface driver provides a virtual interface that sends
+	  and receives data via shared memory channels provided by the Muen kernel.
+
 endmenu
