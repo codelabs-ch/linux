@@ -296,8 +296,11 @@ static int __init muen_sinfo_init(void)
 	void __iomem *early_sched_info = (void *)this_cpu_read(scheduling_info);
 
 	ret = muen_sinfo_setup(smp_processor_id());
-	early_iounmap(early_sinfo, sizeof(struct subject_info_type));
-	early_iounmap(early_sched_info, sizeof(struct muen_scheduling_info_type));
+
+	if (early_sinfo)
+		early_iounmap(early_sinfo, sizeof(struct subject_info_type));
+	if (early_sched_info)
+		early_iounmap(early_sched_info, sizeof(struct muen_scheduling_info_type));
 	return ret;
 }
 
