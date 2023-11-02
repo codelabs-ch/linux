@@ -323,6 +323,8 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 		&node->fwnode, NUMBER_OF_INTERRUPTS, &muensk_irq_domain_ops, &muensk_data
 	);
 
+	irq_set_default_host(muensk_data.domain);
+
 	writel_relaxed(IRQ_DEFAULT_CONTROL, muensk_data.raw_address + IRQ_CONTROL_OFFSET);
 	writel_relaxed(IRQ_DEFAULT_PRIORITY, muensk_data.raw_address + IRQ_PRIORITY_MASK_OFFSET);
 	writel_relaxed(IRQ_DEFAULT_BINARY_POINT, muensk_data.raw_address + IRQ_BINARY_POINT_OFFSET);
