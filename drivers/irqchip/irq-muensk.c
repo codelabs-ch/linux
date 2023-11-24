@@ -270,6 +270,27 @@ static void __exception_irq_entry muensk_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
+/**
+ * muensk_smp_init - Initializes SMP/IPI subsystem as these IRQs are e.g.
+ * enumerated by /proc/interrupts and would cause NULL-pointer dereferences
+ * otherwise.
+ */
+static __init void muensk_smp_init(void)
+{
+	int i, virq, base_sgi;
+
+	for (i = 0; i < NUMBER_OF_SGI_INTERRUPTS; i++) {
+		virq = irq_create_mapping(muensk_data.domain, i);
+		if (i == 0) {
+			base_sgi = virq;
+		}
+	}
+
+	if (WARN_ON(base_sgi <= 0))
+		return;
+
+	set_smp_ipi_range(base_sgi, NUMBER_OF_SGI_INTERRUPTS);
+}
 
 /**
  * muensk_component_address - Reads the start address of the
@@ -322,6 +343,8 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 	muensk_data.domain = irq_domain_create_linear(
 		&node->fwnode, NUMBER_OF_INTERRUPTS, &muensk_irq_domain_ops, &muensk_data
 	);
+
+	muensk_smp_init();
 
 	irq_set_default_host(muensk_data.domain);
 
