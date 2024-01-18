@@ -556,6 +556,16 @@ int memtype_reserve(u64 start, u64 end, enum page_cache_mode req_type,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_MUEN_GUEST
+	/*
+	 * Print informational message when a non-WB memory region is requested.
+	 */
+	if (req_type != _PAGE_CACHE_MODE_WB) {
+		pr_info("%s: [mem %#010Lx-%#010Lx], req %s\n", __func__, start, end -
+			1, cattr_name(req_type));
+	}
+#endif
+
 	if (!pat_enabled()) {
 		/* This is identical to page table setting without PAT */
 		if (new_type)
