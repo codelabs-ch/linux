@@ -34,7 +34,7 @@
 static void muen_machine_restart(char *__unused)
 {
 	const struct muen_resource_type *const
-		event = muen_get_resource("reboot",	MUEN_RES_EVENT);
+		event = muen_get_resource("reboot", MUEN_RES_EVENT);
 
 	if (!event) {
 		pr_warn("muen: No reboot event, halting CPU\n");
