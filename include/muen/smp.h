@@ -3,10 +3,8 @@
 
 #include <muen/sinfo.h>
 
-/*
- * Initialize SMP on Muen SK.
- */
-void __init muen_smp_init(void);
+/* Macro available on x86 and used by modules */
+#define ISA_IRQ_VECTOR(irq) (0)
 
 /* Resource to CPU affinity information */
 struct muen_cpu_affinity {
