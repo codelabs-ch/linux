@@ -64,6 +64,7 @@ config HVC_MUEN
 	bool "Muen virtual console support"
 	depends on MUEN_SINFO
 	select HVC_DRIVER
+	select HVC_IRQ
 	select MUEN_CHANNEL
 	default n
 	help
