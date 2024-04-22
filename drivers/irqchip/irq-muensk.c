@@ -197,7 +197,6 @@ static int muensk_irq_domain_xlate(
  */
 void muensk_mask(struct irq_data *data)
 {
-	printk(KERN_DEBUG "Muen SK IRQ Chip - mask called with IRQ No: %ld", data->hwirq);
 }
 
 /**
@@ -213,7 +212,6 @@ void muensk_mask(struct irq_data *data)
  */
 void muensk_unmask(struct irq_data *data)
 {
-	printk(KERN_DEBUG "Muen SK IRQ Chip - unmask called with IRQ No: %ld", data->hwirq);
 }
 
 /**
