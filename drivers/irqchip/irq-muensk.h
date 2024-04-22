@@ -103,13 +103,16 @@ static inline bool is_spi_interrupt (unsigned long hardware_irq)
 /*
  * function prototypes
  */
- static int muensk_irq_domain_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw);
- static void muensk_irq_domain_unmap(struct irq_domain *d, unsigned int irq);
- static int muensk_irq_domain_xlate(
-	 struct irq_domain *d, struct device_node *ctrlr,
-	 const u32 *intspec, unsigned int intsize,
-	 unsigned long *out_hwirq, unsigned int *out_type
- );
+static int muensk_irq_domain_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw);
+static void muensk_irq_domain_unmap(struct irq_domain *d, unsigned int irq);
+static int muensk_irq_domain_xlate(
+	struct irq_domain *d, struct device_node *ctrlr,
+	const u32 *intspec, unsigned int intsize,
+	unsigned long *out_hwirq, unsigned int *out_type
+);
+static int muensk_set_affinity(struct irq_data *d,
+			       const struct cpumask *mask_val, bool force);
+static void muensk_ipi_send_mask(struct irq_data *d, const struct cpumask *mask);
 
 void muensk_mask(struct irq_data *data);
 void muensk_unmask(struct irq_data *data);

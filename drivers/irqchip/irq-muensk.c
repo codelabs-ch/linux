@@ -57,12 +57,14 @@
  * Definitions
  */
 static const struct irq_chip muensk_chip = {
-	.name           = "Muen SK - (virtual) IRQ Chip, version 0.9",
-	.irq_mask       = muensk_mask,
-	.irq_unmask     = muensk_unmask,
-	.irq_ack        = muensk_ack,
-	.irq_eoi        = muensk_eoi,
-	.flags          = IRQCHIP_SKIP_SET_WAKE,
+	.name             = "Muen SK - (virtual) IRQ Chip, version 0.9",
+	.irq_mask         = muensk_mask,
+	.irq_unmask       = muensk_unmask,
+	.irq_ack          = muensk_ack,
+	.irq_eoi          = muensk_eoi,
+	.irq_set_affinity = muensk_set_affinity,
+	.ipi_send_mask    = muensk_ipi_send_mask,
+	.flags            = IRQCHIP_SKIP_SET_WAKE,
 };
 
 static const struct irq_domain_ops muensk_irq_domain_ops = {
@@ -268,6 +270,28 @@ static void __exception_irq_entry muensk_handle_irq(struct pt_regs *regs)
 		}
 		break;
 	} while (1);
+}
+
+/**
+ * muensk_set_affinity - Set CPU affinity. Currently a no-op as we don't support
+ * more than one CPU.
+ */
+static int muensk_set_affinity(struct irq_data *d,
+			       const struct cpumask *mask_val, bool force)
+{
+	return IRQ_SET_MASK_OK_DONE;
+}
+
+/**
+ * muensk_ipi_send_mask - Send an IPI to CPUs in mask. Currently a no-op.
+ */
+static void muensk_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
+{
+	if (likely(nr_cpu_ids == 1)) {
+		return;
+	}
+	printk(KERN_ERR "ERROR %s: unable to send IPI, no SMP support",
+	       muensk_data.chip.name);
 }
 
 /**
