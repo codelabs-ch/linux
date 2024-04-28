@@ -30,7 +30,7 @@
 #include "hvc_console.h"
 
 #define HVC_MUEN_COOKIE 0x4d75656e /* "Muen" in hex */
-#define HVC_MUEN_PROTOCOL 1
+#define HVC_MUEN_PROTOCOL 0x6876635f6d75656eUL /* "hvc_muen" in hex */
 #define HVC_MUEN_MAX_COUNT HVC_ALLOC_TTY_ADAPTERS
 
 struct muencons_info {
