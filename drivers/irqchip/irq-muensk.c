@@ -368,6 +368,11 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 		&node->fwnode, NUMBER_OF_INTERRUPTS, &muensk_irq_domain_ops, &muensk_data
 	);
 
+	/* Update nr_irqs according to our config as the default is only 64 and any
+	 * IRQs higher would first get mapped to a value below that. */
+	nr_irqs = NUMBER_OF_INTERRUPTS;
+	printk(KERN_DEBUG "Muen SK IRQ Chip - set nr_irqs: %u", nr_irqs);
+
 	muensk_smp_init();
 
 	irq_set_default_host(muensk_data.domain);
