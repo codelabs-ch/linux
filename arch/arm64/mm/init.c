@@ -481,6 +481,15 @@ void __init mem_init(void)
 	}
 }
 
+/*
+ * We don't want the kernel binary region to get used as memory, especially not
+ * for DMA. So we keep the area between __init_begin and __init_end (between
+ * code and data section) reserved and do nothing here (we have to define it
+ * since free_initmem_default() also calls free_reserved_area() for this area).
+ */
+#ifdef CONFIG_MUEN_GUEST
+void free_initmem(void) {}
+#else
 void free_initmem(void)
 {
 	free_reserved_area(lm_alias(__init_begin),
@@ -493,6 +502,7 @@ void free_initmem(void)
 	 */
 	vunmap_range((u64)__init_begin, (u64)__init_end);
 }
+#endif
 
 void dump_mem_limit(void)
 {
