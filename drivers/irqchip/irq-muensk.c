@@ -290,7 +290,7 @@ static void muensk_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 	if (likely(nr_cpu_ids == 1)) {
 		return;
 	}
-	printk(KERN_ERR "ERROR %s: unable to send IPI, no SMP support",
+	pr_err("ERROR %s: unable to send IPI, no SMP support",
 	       muensk_data.chip.name);
 }
 
@@ -330,7 +330,7 @@ unsigned long muensk_component_address(struct device_node *node, int resource_in
 	struct resource address_res;
 
 	if (of_address_to_resource(node, resource_index, &address_res) != 0) {
-		printk(KERN_ERR "ERROR %s: could not read physical address", muensk_data.chip.name);
+		pr_err("ERROR %s: could not read physical address", muensk_data.chip.name);
 		return -1;
 	}
 
@@ -353,27 +353,26 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 	muensk_data.chip = muensk_chip;
 	muensk_data.initialized = false;
 
-	printk(KERN_INFO "%s", muensk_data.chip.name);
-
 	if (WARN_ON(!node)) {
 		return -ENODEV;
 	}
 
 	muensk_data.physical_address = muensk_component_address(node, 0);
 	muensk_data.raw_address      = of_iomap(node, 0);
-
-	set_handle_irq(muensk_handle_irq);
-
-	muensk_data.domain = irq_domain_create_linear(
+	muensk_data.domain           = irq_domain_create_linear(
 		&node->fwnode, NUMBER_OF_INTERRUPTS, &muensk_irq_domain_ops, &muensk_data
 	);
 
 	/* Update nr_irqs according to our config as the default is only 64 and any
 	 * IRQs higher would first get mapped to a value below that. */
 	nr_irqs = NUMBER_OF_INTERRUPTS;
-	printk(KERN_DEBUG "Muen SK IRQ Chip - set nr_irqs: %u", nr_irqs);
+
+	pr_info("%s (%s, addr: %#lx, nr_irqs: %u)", muensk_data.chip.name,
+		node->full_name, muensk_data.physical_address, nr_irqs);
 
 	muensk_smp_init();
+
+	set_handle_irq(muensk_handle_irq);
 
 	irq_set_default_host(muensk_data.domain);
 
@@ -382,11 +381,6 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 	writel_relaxed(IRQ_DEFAULT_BINARY_POINT, muensk_data.raw_address + IRQ_BINARY_POINT_OFFSET);
 
 	muensk_data.initialized = true;
-
-	printk(KERN_DEBUG "    DTS Node Name: %s", node->full_name);
-	printk(KERN_DEBUG "    Physical Address: %#lx", muensk_data.physical_address);
-	printk(KERN_DEBUG "    IRQ Status: %s", (muensk_data.initialized ?
-		"initialization successful" : "initialization failed"));
 
 	return muensk_data.initialized ? 0 : -1;
 }
