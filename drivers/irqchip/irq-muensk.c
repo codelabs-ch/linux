@@ -1,51 +1,35 @@
-/*************************************************************************
-*                                                                        *
-*  Copyright (C) codelabs gmbh, Switzerland - all rights reserved        *
-*                <https://www.codelabs.ch/>, <contact@codelabs.ch>       *
-*                                                                        *
-*  This program is free software: you can redistribute it and/or modify  *
-*  it under the terms of the GNU General Public License as published by  *
-*  the Free Software Foundation, either version 3 of the License, or     *
-*  (at your option) any later version.                                   *
-*                                                                        *
-*  This program is distributed in the hope that it will be useful,       *
-*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-*  GNU General Public License for more details.                          *
-*                                                                        *
-*  You should have received a copy of the GNU General Public License     *
-*  along with this program.  If not, see <http://www.gnu.org/licenses/>. *
-*                                                                        *
-*                                                                        *
-*    @contributors                                                       *
-*        2019, 2022  David Loosli <dave@codelabs.ch>                     *
-*                                                                        *
-*                                                                        *
-*    @description                                                        *
-*        irq-muensk contains the Muen SK irq chip implementation that    *
-*        is required by all Linux subjects of a Muen SK system. This     *
-*        driver acts as counterpart to the GIC virtualization provided   *
-*        by the Muen SK. The driver currently only supports a static     *
-*        configuration of the virtual CPU interface with only group 0    *
-*        interrupts, separate priority drop and deactivation (i.e. EOI   *
-*        mode equ. 1) and default priority and binary point values. As   *
-*        the official ARM GICv2 implementation and its derivatives, the  *
-*        Muen SK acknowledges and drops the priority in the exception    *
-*        irq entry function to be able to let the Linux kernel handle    *
-*        all interrupts as edge-triggerd, even though most hardware      *
-*        interrupts are defined as level-sensitive by the actual ARM     *
-*        and SoC specification. This also allows the driver to let the   *
-*        ack, mask and unmask function implementations empty.            *
-*    @project                                                            *
-*        MuenOnARM                                                       *
-*    @interface                                                          *
-*        Subjects                                                        *
-*    @target                                                             *
-*        Linux mainline kernel 5.2                                       *
-*    @reference                                                          *
-*        Linux Documentation                                             *
-*                                                                        *
-*************************************************************************/
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2023-2024  Tobias Brunner <tobias@codelabs.ch>
+ * Copyright (C) 2019-2023  David Loosli <dave@codelabs.ch>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *
+ * This file contains the Muen SK IRQ chip implementation that is required by
+ * all Linux subjects of a Muen SK system.
+ *
+ * The driver acts as counterpart to the GIC virtualization provided by the
+ * Muen SK. It currently only supports a static configuration of the virtual
+ * CPU interface with only group 0 interrupts, separate priority drop and
+ * deactivation (i.e. EOI mode equ. 1) and default priority and binary point
+ * values.
+ *
+ * Like the official ARM GICv2 implementation and its derivatives, the Muen SK
+ * acknowledges and drops the priority in the exception irq entry function to
+ * be able to let the Linux kernel handle all interrupts as edge-triggerd, even
+ * though most hardware interrupts are defined as level-sensitive by the actual
+ * ARM and SoC specification. This also allows the driver to let the ack, mask
+ * and unmask function implementations empty.
+ */
 
 #include <linux/irq.h>
 #include <linux/irqchip.h>
@@ -84,26 +68,26 @@
 #define IRQ_DEFAULT_PRIORITY        0x000000f8
 #define IRQ_DEFAULT_BINARY_POINT    0x00000002
 
-static inline bool is_sgi_interrupt (unsigned long hardware_irq)
+static inline bool is_sgi_interrupt(unsigned long hardware_irq)
 {
-	return 0 <= hardware_irq && hardware_irq <= 15;
+	return hardware_irq >= 0 && hardware_irq <= 15;
 }
 
-static inline bool is_ppi_interrupt (unsigned long hardware_irq)
+static inline bool is_ppi_interrupt(unsigned long hardware_irq)
 {
-	return 16 <= hardware_irq && hardware_irq <= 31;
+	return hardware_irq >= 16 && hardware_irq <= 31;
 }
 
-static inline bool is_spi_interrupt (unsigned long hardware_irq)
+static inline bool is_spi_interrupt(unsigned long hardware_irq)
 {
-	return 32 <= hardware_irq && hardware_irq <= 1119;
+	return hardware_irq >= 32 && hardware_irq <= 1119;
 }
 
 struct muensk_irq_data {
 	struct irq_chip chip;
 	unsigned long physical_address;
-	void __iomem * raw_address;
-	struct irq_domain * domain;
+	void __iomem *raw_address;
+	struct irq_domain *domain;
 	bool initialized;
 };
 
@@ -129,19 +113,17 @@ static int muensk_irq_domain_map(
 )
 {
 	pr_debug("Muen SK IRQ Chip - domain map the IRQ No: %ld", hw);
-	if (is_sgi_interrupt(hw) || is_ppi_interrupt(hw))
-	{
+
+	if (is_sgi_interrupt(hw) || is_ppi_interrupt(hw)) {
 		irq_domain_set_info(d, irq, hw, &(muensk_data.chip), d->host_data,
 			handle_percpu_devid_irq, NULL, NULL);
 		return irq_set_percpu_devid(irq);
 	}
-	else
-	{
-		irq_domain_set_info(d, irq, hw, &(muensk_data.chip), d->host_data,
-			handle_fasteoi_irq, NULL, NULL);
-		irq_set_noprobe(irq);
-		return 0;
-	}
+
+	irq_domain_set_info(d, irq, hw, &(muensk_data.chip), d->host_data,
+		handle_fasteoi_irq, NULL, NULL);
+	irq_set_noprobe(irq);
+	return 0;
 }
 
 /**
@@ -183,27 +165,22 @@ static int muensk_irq_domain_xlate(
 )
 {
 	if (WARN_ON(intsize != 3))
-	{
 		return -EINVAL;
-	}
 
 	pr_debug("Muen SK IRQ Chip - domain xlate with IRQ specification: %d / %d / %d",
-	         intspec[0], intspec[1], intspec[2]);
+		 intspec[0], intspec[1], intspec[2]);
 
-	if (intspec[0] == SGI_INTERRUPT_TYPE)
-	{
+	if (intspec[0] == SGI_INTERRUPT_TYPE) {
 		*out_hwirq = intspec[1];
 		*out_type  = intspec[2] & IRQ_TYPE_SENSE_MASK;
 	}
 
-	if (intspec[0] == PPI_INTERRUPT_TYPE)
-	{
+	if (intspec[0] == PPI_INTERRUPT_TYPE) {
 		*out_hwirq = intspec[1] + 16;
 		*out_type  = intspec[2] & IRQ_TYPE_SENSE_MASK;
 	}
 
-	if (intspec[0] == SPI_INTERRUPT_TYPE)
-	{
+	if (intspec[0] == SPI_INTERRUPT_TYPE) {
 		*out_hwirq = intspec[1] + 32;
 		*out_type  = intspec[2] & IRQ_TYPE_SENSE_MASK;
 	}
@@ -282,14 +259,12 @@ static void __exception_irq_entry muensk_handle_irq(struct pt_regs *regs)
 {
 	u32 irq_status, irq_number;
 
-	do
-	{
+	do {
 		irq_status = readl_relaxed(muensk_data.raw_address + IRQ_ACKNOWLEDGE_OFFSET);
 		irq_number = irq_status & IRQ_ACKNOWLEDGE_MASK;
 
 		if (irq_number != IRQ_NO_PENDING_GROUP_1_VALUE &&
-			irq_number != IRQ_NO_PENDING_GROUP_0_VALUE)
-		{
+		    irq_number != IRQ_NO_PENDING_GROUP_0_VALUE) {
 			writel_relaxed(irq_status, muensk_data.raw_address + IRQ_END_OF_INTERRUPT_OFFSET);
 			generic_handle_domain_irq(muensk_data.domain, irq_number);
 			continue;
@@ -313,9 +288,9 @@ static int muensk_set_affinity(struct irq_data *d,
  */
 static void muensk_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 {
-	if (likely(nr_cpu_ids == 1)) {
+	if (likely(nr_cpu_ids == 1))
 		return;
-	}
+
 	pr_err("ERROR %s: unable to send IPI, no SMP support",
 	       muensk_data.chip.name);
 }
@@ -351,9 +326,8 @@ static __init void muensk_smp_init(void)
 
 	for (i = 0; i < NUMBER_OF_SGI_INTERRUPTS; i++) {
 		virq = irq_create_mapping(muensk_data.domain, i);
-		if (i == 0) {
+		if (i == 0)
 			base_sgi = virq;
-		}
 	}
 
 	if (WARN_ON(base_sgi <= 0))
@@ -399,9 +373,8 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 	muensk_data.chip = muensk_chip;
 	muensk_data.initialized = false;
 
-	if (WARN_ON(!node)) {
+	if (WARN_ON(!node))
 		return -ENODEV;
-	}
 
 	muensk_data.physical_address = muensk_component_address(node, 0);
 	muensk_data.raw_address      = of_iomap(node, 0);
@@ -410,7 +383,8 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 	);
 
 	/* Update nr_irqs according to our config as the default is only 64 and any
-	 * IRQs higher would first get mapped to a value below that. */
+	 * IRQs higher would first get mapped to a value below that.
+	 */
 	nr_irqs = NUMBER_OF_INTERRUPTS;
 
 	pr_info("%s (%s, addr: %#lx, nr_irqs: %u)", muensk_data.chip.name,
