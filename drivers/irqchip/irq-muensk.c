@@ -47,31 +47,57 @@
 *                                                                        *
 *************************************************************************/
 
-#include <linux/ioport.h>
+#include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
+#include <linux/types.h>
 
-#include "irq-muensk.h"
+#include <asm/exception.h>
 
 /*
  * Definitions
  */
-static const struct irq_chip muensk_chip = {
-	.name             = "Muen SK - (virtual) IRQ Chip, version 0.9",
-	.irq_mask         = muensk_mask,
-	.irq_unmask       = muensk_unmask,
-	.irq_ack          = muensk_ack,
-	.irq_eoi          = muensk_eoi,
-	.irq_set_affinity = muensk_set_affinity,
-	.ipi_send_mask    = muensk_ipi_send_mask,
-	.flags            = IRQCHIP_SKIP_SET_WAKE,
-};
+#define NUMBER_OF_INTERRUPTS       1024
+#define NUMBER_OF_SGI_INTERRUPTS     16
+#define NUMBER_OF_PPI_INTERRUPTS     16
 
-static const struct irq_domain_ops muensk_irq_domain_ops = {
-	.map   = muensk_irq_domain_map,
-	.unmap = muensk_irq_domain_unmap,
-	.xlate = muensk_irq_domain_xlate,
-};
+#define SGI_INTERRUPT_TYPE    2
+#define PPI_INTERRUPT_TYPE    1
+#define SPI_INTERRUPT_TYPE    0
+
+#define IRQ_CONTROL_OFFSET                     0x0000
+#define IRQ_PRIORITY_MASK_OFFSET               0x0004
+#define IRQ_BINARY_POINT_OFFSET                0x0008
+#define IRQ_ACKNOWLEDGE_OFFSET                 0x000C
+#define IRQ_END_OF_INTERRUPT_OFFSET            0x0010
+#define IRQ_RUNNING_PRIORITY_OFFSET            0x0014
+#define IRQ_HIGHEST_PRIORITY_OFFSET            0x0018
+#define IRQ_DEACTIVATE_INTERRUPT_OFFSET        0x1000
+
+#define IRQ_ACKNOWLEDGE_MASK                   0x03FF
+
+#define IRQ_NO_PENDING_GROUP_1_VALUE  1022
+#define IRQ_NO_PENDING_GROUP_0_VALUE  1023
+
+#define IRQ_DEFAULT_CONTROL         0x00000201
+#define IRQ_DEFAULT_PRIORITY        0x000000f8
+#define IRQ_DEFAULT_BINARY_POINT    0x00000002
+
+static inline bool is_sgi_interrupt (unsigned long hardware_irq)
+{
+	return 0 <= hardware_irq && hardware_irq <= 15;
+}
+
+static inline bool is_ppi_interrupt (unsigned long hardware_irq)
+{
+	return 16 <= hardware_irq && hardware_irq <= 31;
+}
+
+static inline bool is_spi_interrupt (unsigned long hardware_irq)
+{
+	return 32 <= hardware_irq && hardware_irq <= 1119;
+}
 
 struct muensk_irq_data {
 	struct irq_chip chip;
@@ -293,6 +319,26 @@ static void muensk_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 	pr_err("ERROR %s: unable to send IPI, no SMP support",
 	       muensk_data.chip.name);
 }
+
+/**
+ * Configuration objects
+ */
+static const struct irq_chip muensk_chip = {
+	.name             = "Muen SK - (virtual) IRQ Chip, version 0.9",
+	.irq_mask         = muensk_mask,
+	.irq_unmask       = muensk_unmask,
+	.irq_ack          = muensk_ack,
+	.irq_eoi          = muensk_eoi,
+	.irq_set_affinity = muensk_set_affinity,
+	.ipi_send_mask    = muensk_ipi_send_mask,
+	.flags            = IRQCHIP_SKIP_SET_WAKE,
+};
+
+static const struct irq_domain_ops muensk_irq_domain_ops = {
+	.map   = muensk_irq_domain_map,
+	.unmap = muensk_irq_domain_unmap,
+	.xlate = muensk_irq_domain_xlate,
+};
 
 /**
  * muensk_smp_init - Initializes SMP/IPI subsystem as these IRQs are e.g.
