@@ -102,7 +102,7 @@ static int muensk_irq_domain_map(
 	struct irq_domain *d, unsigned int irq, irq_hw_number_t hw
 )
 {
-	printk(KERN_DEBUG "Muen SK IRQ Chip - domain map the IRQ No: %ld", hw);
+	pr_debug("Muen SK IRQ Chip - domain map the IRQ No: %ld", hw);
 	if (is_sgi_interrupt(hw) || is_ppi_interrupt(hw))
 	{
 		irq_domain_set_info(d, irq, hw, &(muensk_data.chip), d->host_data,
@@ -128,7 +128,7 @@ static int muensk_irq_domain_map(
  */
 static void muensk_irq_domain_unmap(struct irq_domain *d, unsigned int irq)
 {
-	printk(KERN_DEBUG "Muen SK IRQ Chip - domain unmap the IRQ No: %d", irq);
+	pr_debug("Muen SK IRQ Chip - domain unmap the IRQ No: %d", irq);
 	irq_domain_reset_irq_data(irq_get_irq_data(irq));
 }
 
@@ -161,8 +161,8 @@ static int muensk_irq_domain_xlate(
 		return -EINVAL;
 	}
 
-	printk(KERN_DEBUG "Muen SK IRQ Chip - domain xlate with IRQ specification: %d / %d / %d",
-	          intspec[0], intspec[1], intspec[2]);
+	pr_debug("Muen SK IRQ Chip - domain xlate with IRQ specification: %d / %d / %d",
+	         intspec[0], intspec[1], intspec[2]);
 
 	if (intspec[0] == SGI_INTERRUPT_TYPE)
 	{
@@ -199,7 +199,7 @@ static int muensk_irq_domain_xlate(
  */
 void muensk_mask(struct irq_data *data)
 {
-	printk(KERN_DEBUG "Muen SK IRQ Chip - mask called with IRQ No: %ld", data->hwirq);
+	pr_debug("Muen SK IRQ Chip - mask called with IRQ No: %ld", data->hwirq);
 }
 
 /**
@@ -215,7 +215,7 @@ void muensk_mask(struct irq_data *data)
  */
 void muensk_unmask(struct irq_data *data)
 {
-	printk(KERN_DEBUG "Muen SK IRQ Chip - unmask called with IRQ No: %ld", data->hwirq);
+	pr_debug("Muen SK IRQ Chip - unmask called with IRQ No: %ld", data->hwirq);
 }
 
 /**
