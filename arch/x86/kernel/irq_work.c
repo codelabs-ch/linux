@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
+#ifndef CONFIG_MUEN_GUEST
 DEFINE_IDTENTRY_SYSVEC(sysvec_irq_work)
 {
 	ack_APIC_irq();
@@ -31,4 +32,5 @@ void arch_irq_work_raise(void)
 	apic->send_IPI_self(IRQ_WORK_VECTOR);
 	apic_wait_icr_idle();
 }
+#endif
 #endif

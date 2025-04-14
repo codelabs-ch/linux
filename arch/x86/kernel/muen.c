@@ -17,15 +17,20 @@
  */
 
 #include <linux/irq.h>
+#include <linux/irq_work.h>
 #include <linux/io.h>
 #include <linux/kvm_para.h>
 #include <linux/pm.h>
+#include <linux/hardirq.h>
+#include <linux/interrupt.h>
 
 #include <asm/i8259.h>
+#include <asm/idtentry.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
 #include <asm/cpufeature.h>
 #include <asm/reboot.h>
+#include <asm/trace/irq_vectors.h>
 
 #include <muen/sinfo.h>
 #include <muen/pci.h>
@@ -83,8 +88,31 @@ static const struct machine_ops muen_machine_ops __initconst = {
 
 static int muen_pic_probe(void) { return NR_IRQS_LEGACY; }
 
+DEFINE_IDTENTRY_SYSVEC(sysvec_irq_work)
+{
+	trace_irq_work_entry(IRQ_WORK_VECTOR);
+	inc_irq_stat(apic_irq_work_irqs);
+	irq_work_run();
+	trace_irq_work_exit(IRQ_WORK_VECTOR);
+}
+
+int irq_work_evt = -1;
+
+void arch_irq_work_raise(void)
+{
+	kvm_hypercall0(irq_work_evt);
+}
+
 static void __init muen_init_IRQ(void)
 {
+	const struct muen_resource_type *const
+		event = muen_get_resource("work", MUEN_RES_EVENT);
+
+	if (!event)
+		pr_warn("muen: No work IRQ event\n");
+	else
+		irq_work_evt = event->data.number;
+
 	native_init_IRQ();
 	init_ISA_irqs();
 }
