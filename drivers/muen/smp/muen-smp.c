@@ -21,6 +21,7 @@
 #include <linux/stackprotector.h>
 #include <linux/smp.h>
 #include <linux/sched/task_stack.h>
+#include <linux/memblock.h>
 
 #include <asm/apic.h>
 #include <asm/desc.h>
@@ -423,6 +424,35 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 	muen_setup_events();
 }
 
+void __init muen_smp_reserve_real_mode(void)
+{
+	const phys_addr_t addr = 0x20000;
+	phys_addr_t mem;
+	size_t size = real_mode_size_needed();
+
+	if (!size)
+		return;
+
+	WARN_ON(slab_is_available());
+
+	/* Allocate our expected AP trampoline address. */
+	mem = memblock_phys_alloc_range(size, PAGE_SIZE, addr, addr + size);
+	if (!mem)
+		pr_warn("muen-smp: Unable to allocate AP trampoline @ 0x%llx, size 0x%lx\n",
+			addr, size);
+	else {
+		set_real_mode_mem(mem);
+		pr_info("muen-smp: Allocated AP trampoline @ 0x%llx, size 0x%lx\n",
+			addr, size);
+	}
+
+	/*
+	 * Unconditionally reserve the entire first 1M, see comment in
+	 * setup_arch().
+	 */
+	memblock_reserve(0, SZ_1M);
+}
+
 void muen_smp_send_call_function_single_ipi(int cpu)
 {
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
@@ -563,4 +593,6 @@ void __init muen_smp_init(void)
 	smp_ops.send_call_func_ipi = muen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = muen_smp_send_call_function_single_ipi;
 	smp_ops.smp_send_reschedule = muen_smp_send_reschedule;
+
+	x86_platform.realmode_reserve = muen_smp_reserve_real_mode;
 }
