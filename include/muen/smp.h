@@ -6,6 +6,9 @@
 /* Macro available on x86 and used by modules */
 #define ISA_IRQ_VECTOR(irq) (0)
 
+/* Defined for x86, but not for ARM64. Define here. */
+void kvm_hypercall0(unsigned int num);
+
 /* Resource to CPU affinity information */
 struct muen_cpu_affinity {
 	uint8_t cpu;

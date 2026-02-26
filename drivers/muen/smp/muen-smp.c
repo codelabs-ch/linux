@@ -87,16 +87,14 @@ static void muen_register_resources(void)
 	muen_for_each_resource(register_resource, NULL);
 }
 
-/**
- * Defined for x86, not for ARM64
- */
-static inline void kvm_hypercall0(unsigned int num)
+inline void kvm_hypercall0(unsigned int num)
 {
 	asm volatile("mov   x0, %[num]\n"
 		     "hvc #1"
 		     : /* no outputs */
 		     : [num] "r"(num));
 }
+EXPORT_SYMBOL(kvm_hypercall0);
 
 static void do_trigger_event(void *data)
 {
