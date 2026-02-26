@@ -22,6 +22,7 @@
 #include <linux/kvm_para.h>
 #include <linux/random.h>
 #include <linux/io.h>
+#include <linux/serial_core.h>
 #include <muen/sinfo.h>
 #include <muen/reader.h>
 #include <muen/writer.h>
@@ -68,6 +69,86 @@ MODULE_PARM_DESC(out, "Output channels (min. 1), comma-separated (empty values a
 static LIST_HEAD(muencons);
 static DEFINE_SPINLOCK(muencons_lock);
 
+/* debuglog support */
+#define DEBUGLOG_PROTO 0xf00789094b6f70cfUL
+
+struct log_msg {
+	uint64_t timestamp;
+	char data[56];
+} __packed;
+
+static int msg_index;
+static struct log_msg msg_buffer;
+
+static bool dbglog;
+module_param(dbglog, bool, 0444);
+
+/* earlycon support */
+static struct muchannel *early_out;
+static unsigned int early_out_len;
+
+static void dbglog_clear_buffer(void)
+{
+	msg_index = 0;
+	memset(&msg_buffer, 0, sizeof(struct log_msg));
+}
+
+static void dbglog_flush(struct muchannel *chan)
+{
+	msg_buffer.timestamp = muen_get_sched_start();
+	muen_channel_write(chan, &msg_buffer);
+	dbglog_clear_buffer();
+}
+
+static void send_hvc(struct muchannel *chan, const char *data, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		muen_channel_write(chan, &data[i]);
+}
+
+static void send_dbglog(struct muchannel *chan, const char *data, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (data[i] && data[i] != 0x0d) {
+			msg_buffer.data[msg_index] = data[i];
+			if (msg_index == 55 || data[i] == 0x0a)
+				dbglog_flush(chan);
+			else
+				msg_index++;
+		}
+	}
+}
+
+typedef void (*send_func_t)(struct muchannel *, const char *, int);
+
+static send_func_t send_func = send_hvc;
+
+static void output_init_hvc(struct muchannel *chan,
+			    const uint64_t channel_size,
+			    const uint64_t epoch)
+{
+	muen_channel_init_writer(chan, HVC_MUEN_PROTOCOL,
+				 1, channel_size, epoch);
+}
+
+static void output_init_dbglog(struct muchannel *chan,
+			       const uint64_t channel_size,
+			       const uint64_t epoch)
+{
+	muen_channel_init_writer(chan, DEBUGLOG_PROTO,
+				 sizeof(struct log_msg), channel_size, epoch);
+}
+
+typedef void (*output_init_func_t)(struct muchannel *,
+				   const uint64_t,
+				   const uint64_t);
+
+static output_init_func_t output_init_func = output_init_hvc;
+
 static struct muencons_info *vtermno_to_cons(int vtermno)
 {
 	struct muencons_info *entry, *ret = NULL;
@@ -92,14 +173,12 @@ static struct muencons_info *vtermno_to_cons(int vtermno)
 
 static int hvc_muen_put(uint32_t vtermno, const char *data, int count)
 {
-	int i;
 	struct muencons_info *cons = vtermno_to_cons(vtermno);
 
 	if (cons == NULL || !cons->channel_out)
 		return -EINVAL;
 
-	for (i = 0; i < count; i++)
-		muen_channel_write(cons->channel_out, &data[i]);
+	send_func(cons->channel_out, data, count);
 
 	if (cons->event >= 0)
 		kvm_hypercall0(cons->event);
@@ -292,8 +371,12 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		goto error;
 	}
 
-	muen_channel_init_writer(info->channel_out, HVC_MUEN_PROTOCOL, 1,
-				 info->channel_size, epoch);
+	/*
+	 * Do not re-init channel if already done by earlycon code.
+	 * Otherwise we will lose log messages.
+	 */
+	if (early_out_len == 0)
+		output_init_func(info->channel_out, info->channel_size, epoch);
 
 	if (info->channel_in)
 		muen_channel_init_reader(&info->reader, HVC_MUEN_PROTOCOL);
@@ -410,6 +493,12 @@ static int __init hvc_muen_console_init(void)
 		return -EINVAL;
 	}
 
+	if (dbglog) {
+		pr_info("hvc_muen[0]: Using debuglog protocol\n");
+		send_func = send_dbglog;
+		output_init_func = output_init_dbglog;
+	}
+
 	if (!muen_smp_one_match(&evt, out[0], MUEN_RES_EVENT))
 		pr_debug("hvc_muen[0]: No event for initial console %s\n", out[0]);
 	else
@@ -428,12 +517,135 @@ static int __init hvc_muen_console_init(void)
 
 	return rc;
 }
+early_initcall(hvc_muen_console_init);
+
+static void hvc_muen_earlycon_write(struct console *co,
+				    const char *data,
+				    unsigned int count)
+{
+	send_func(early_out, data, count);
+}
+
+static int __init hvc_muen_earlycon_cleanup(struct console *con)
+{
+	if (early_out) {
+		early_iounmap(early_out, early_out_len);
+		early_out = NULL;
+	}
+	return 0;
+}
 
 /*
- * Use early_initcall instead of console_initcall here to ensure hvc_muen is
- * initialized only after the SMP affinity db is filled.
+ * Return string value for a given key.
+ * Note: Only returns the first value of a list option,
+ *       e.g. hvc_muen.out=v1,v2 will return v1 only.
  */
-early_initcall(hvc_muen_console_init);
+static int __init early_get_str(const char *cmdline, const char *key, char *out, size_t out_size)
+{
+	const char *p, *val, *end;
+	size_t len;
+
+	if (!cmdline || !key || !out || !out_size)
+		return -EINVAL;
+
+	p = strstr(cmdline, key);
+	if (!p)
+		return -ENOENT;
+
+	val = p + strlen(key);
+
+	end = strpbrk(val, ", \t");
+	if (!end)
+		end = val + strlen(val);
+
+	len = end - val;
+	if (len == 0 || len >= out_size)
+		return -EINVAL;
+
+	memcpy(out, val, len);
+	out[len] = '\0';
+
+	return 0;
+}
+
+static int __init early_get_u64(const char *cmdline, const char *key, u64 *out)
+{
+	char buf[32];
+	int ret;
+
+	ret = early_get_str(cmdline, key, buf, sizeof(buf));
+	if (ret)
+		return ret;
+
+	ret = kstrtoull(buf, 0, out);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static bool __init early_get_dbglog(const char *cmdline)
+{
+	char *arg;
+	bool res = false;
+
+	arg = strstr(cmdline, "hvc_muen.dbglog");
+	if (!arg)
+		return res;
+
+	arg = strstr(cmdline, "hvc_muen.dbglog=");
+	if (!arg)
+		res = true;
+	else if (kstrtobool(arg + strlen("hvc_muen.dbglog="), &res))
+		return res;
+
+	return res;
+}
+
+static int __init hvc_muen_earlycon_setup(struct earlycon_device *device, const char *opt)
+{
+	int ret;
+	unsigned long long sinfo_base;
+	char con_name[64];
+
+	ret = early_get_u64(boot_command_line, "muen_sinfo=", &sinfo_base);
+	if (ret) {
+		pr_warn("hvc_muen: Unable to extract muen_sinfo value from cmdline\n");
+		return ret;
+	}
+	ret = early_get_str(boot_command_line, "hvc_muen.out=", con_name, sizeof(con_name));
+	if (ret) {
+		pr_warn("hvc_muen: Unable to extract console channel from cmdline\n");
+		return ret;
+	}
+	if (early_get_dbglog(boot_command_line)) {
+		send_func = send_dbglog;
+		output_init_func = output_init_dbglog;
+	}
+
+	muen_sinfo_early_init_base(sinfo_base);
+
+	const struct muen_resource_type *const
+		region = muen_get_resource(con_name, MUEN_RES_MEMORY);
+	if (!region) {
+		pr_warn("hvc_muen: Unable to retrieve virtual console region for earlycon");
+		return -EINVAL;
+	}
+
+	early_out_len = region->data.mem.size;
+	early_out = (struct muchannel *)early_ioremap(region->data.mem.address, early_out_len);
+	if (!early_out) {
+		pr_warn("hvc_muen: Unable to map memory for earlycon");
+		return -ENOMEM;
+	}
+	output_init_func(early_out, early_out_len, 1);
+	device->con->write = hvc_muen_earlycon_write;
+	device->con->exit = hvc_muen_earlycon_cleanup;
+	device->port.iotype = UPIO_MEM;
+	device->port.mapbase = region->data.mem.address;
+	return 0;
+}
+EARLYCON_DECLARE(hvc_muen, hvc_muen_earlycon_setup);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
