@@ -271,12 +271,11 @@ inline uint64_t muen_get_sched_end(void)
 }
 EXPORT_SYMBOL(muen_get_sched_end);
 
-void __init muen_sinfo_early_init(void)
+void __init muen_sinfo_early_init_base(unsigned long long base_addr)
 {
 	const unsigned long sinfo_page_size = roundup
 		(sizeof(struct subject_info_type),
 		 PAGE_SIZE);
-	const unsigned long long base_addr = get_base_addr(smp_processor_id());
 	const struct subject_info_type * const sinfo =
 		(struct subject_info_type *)
 		early_ioremap(base_addr, sizeof(struct subject_info_type));
@@ -287,6 +286,13 @@ void __init muen_sinfo_early_init(void)
 
 	per_cpu(subject_info, smp_processor_id()) = sinfo;
 	per_cpu(scheduling_info, smp_processor_id()) = sched_info;
+}
+
+void __init muen_sinfo_early_init(void)
+{
+	const unsigned long long base_addr = get_base_addr(smp_processor_id());
+
+	muen_sinfo_early_init_base(base_addr);
 }
 
 static int __init muen_sinfo_init(void)

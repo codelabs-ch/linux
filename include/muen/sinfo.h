@@ -169,6 +169,12 @@ struct subject_info_type {
 void __init muen_sinfo_early_init(void);
 
 /*
+ * Initialize Muen subject info data for early use when ioremap is not yet
+ * available. Use specified address as sinfo base.
+ */
+void __init muen_sinfo_early_init_base(unsigned long long base_addr);
+
+/*
  * Setup Muen subject info data for given CPU.
  */
 int muen_sinfo_setup(unsigned int cpu);
