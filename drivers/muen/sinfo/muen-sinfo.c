@@ -278,10 +278,10 @@ void __init muen_sinfo_early_init_base(unsigned long long base_addr)
 		 PAGE_SIZE);
 	const struct subject_info_type * const sinfo =
 		(struct subject_info_type *)
-		early_ioremap(base_addr, sizeof(struct subject_info_type));
+		early_memremap_ro(base_addr, sizeof(struct subject_info_type));
 	const struct muen_scheduling_info_type * const sched_info =
 		(struct muen_scheduling_info_type *)
-		early_ioremap(base_addr + sinfo_page_size,
+		early_memremap_ro(base_addr + sinfo_page_size,
 			      sizeof(struct muen_scheduling_info_type));
 
 	per_cpu(subject_info, smp_processor_id()) = sinfo;
@@ -304,9 +304,9 @@ static int __init muen_sinfo_init(void)
 	ret = muen_sinfo_setup(smp_processor_id());
 
 	if (early_sinfo)
-		early_iounmap(early_sinfo, sizeof(struct subject_info_type));
+		early_memunmap(early_sinfo, sizeof(struct subject_info_type));
 	if (early_sched_info)
-		early_iounmap(early_sched_info, sizeof(struct muen_scheduling_info_type));
+		early_memunmap(early_sched_info, sizeof(struct muen_scheduling_info_type));
 	return ret;
 }
 
