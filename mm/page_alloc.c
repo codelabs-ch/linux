@@ -8305,7 +8305,18 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 	memset(arch_zone_highest_possible_pfn, 0,
 				sizeof(arch_zone_highest_possible_pfn));
 
+	/*
+	 * memblock_start_of_DRAM() returns 0x200000 on Muen. This region
+	 * contains the Linux kernel binary, which is not mapped into the
+	 * SMMU. Therefore move the DMA zone start behind the kernel binary
+	 * to make sure no DMA regquest hits this unmapped region.
+	 */
+#ifdef CONFIG_MUEN_GUEST
+	start_pfn = PHYS_PFN(__pa_symbol(_end));
+#else
 	start_pfn = PHYS_PFN(memblock_start_of_DRAM());
+#endif
+
 	descending = arch_has_descending_max_zone_pfns();
 
 	for (i = 0; i < MAX_NR_ZONES; i++) {
