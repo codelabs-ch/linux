@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/clockchips.h>
 #include <linux/percpu.h>
+#include <linux/io.h>
 #include <muen/sinfo.h>
 
 struct subject_timed_event_type {
@@ -80,8 +81,8 @@ void muen_setup_timer_page(unsigned int cpu)
 
 	pr_info("muen-smp: Using timed event region at address 0x%llx for CPU#%u\n",
 		addr, cpu);
-	timer_page = (struct subject_timed_event_type *)ioremap_cache
-		(addr, region->data.mem.size);
+	timer_page = (struct subject_timed_event_type *)memremap
+		(addr, region->data.mem.size, MEMREMAP_WB);
 	per_cpu(timer, cpu) = timer_page;
 }
 

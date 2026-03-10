@@ -17,7 +17,7 @@
 /*
  * Setup timer page for given CPU
  *
- * This function uses ioremap_cache so it cannot be called from atomic
+ * This function uses memremap so it cannot be called from atomic
  * context, therefore it must be called by the BSP only.
  */
 void muen_setup_timer_page(unsigned int cpu);
