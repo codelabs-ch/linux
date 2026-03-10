@@ -317,8 +317,9 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		pr_debug("hvc_muen[%d]: No event for output channel %s\n",
 			 index, out[index]);
 
-	output = (struct muchannel *)ioremap_cache(outres->data.mem.address,
-						   outres->data.mem.size);
+	output = (struct muchannel *)memremap(outres->data.mem.address,
+					      outres->data.mem.size,
+					      MEMREMAP_WB);
 
 	pr_info("hvc_muen[%d]: Out channel %s @ 0x%llx, size 0x%llx, event %d\n",
 		index, out[index], outres->data.mem.address,
@@ -354,8 +355,8 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 				in[index]);
 
 		if (inres) {
-			input = (struct muchannel *)ioremap_cache(
-				inres->data.mem.address, inres->data.mem.size);
+			input = (struct muchannel *)memremap(
+				inres->data.mem.address, inres->data.mem.size, MEMREMAP_WB);
 			pr_info("hvc_muen[%d]: In channel %s @ 0x%llx, size 0x%llx, vector %d\n",
 				index, in[index], inres->data.mem.address,
 				inres->data.mem.size, vecno);
@@ -389,8 +390,8 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 
 error:
 	if (input)
-		iounmap(input);
-	iounmap(output);
+		memunmap(input);
+	memunmap(output);
 	return rc;
 }
 
@@ -462,11 +463,11 @@ static void hvc_muen_destroy(void)
 		entry->hvc = NULL;
 		if (entry->channel_out) {
 			muen_channel_deactivate(entry->channel_out);
-			iounmap(entry->channel_out);
+			memunmap(entry->channel_out);
 		}
 		if (entry->channel_in) {
 			muen_channel_deactivate(entry->channel_out);
-			iounmap(entry->channel_in);
+			memunmap(entry->channel_in);
 		}
 		kfree(entry);
 	}
@@ -529,7 +530,7 @@ static void hvc_muen_earlycon_write(struct console *co,
 static int __init hvc_muen_earlycon_cleanup(struct console *con)
 {
 	if (early_out) {
-		early_iounmap(early_out, early_out_len);
+		early_memunmap(early_out, early_out_len);
 		early_out = NULL;
 	}
 	return 0;
@@ -633,7 +634,7 @@ static int __init hvc_muen_earlycon_setup(struct earlycon_device *device, const 
 	}
 
 	early_out_len = region->data.mem.size;
-	early_out = (struct muchannel *)early_ioremap(region->data.mem.address, early_out_len);
+	early_out = (struct muchannel *)early_memremap(region->data.mem.address, early_out_len);
 	if (!early_out) {
 		pr_warn("hvc_muen: Unable to map memory for earlycon");
 		return -ENOMEM;
