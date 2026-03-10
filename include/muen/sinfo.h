@@ -163,13 +163,13 @@ struct subject_info_type {
 } __packed;
 
 /*
- * Initialize Muen subject info data for early use when ioremap is not yet
+ * Initialize Muen subject info data for early use when memremap is not yet
  * available.
  */
 void __init muen_sinfo_early_init(void);
 
 /*
- * Initialize Muen subject info data for early use when ioremap is not yet
+ * Initialize Muen subject info data for early use when memremap is not yet
  * available. Use specified address as sinfo base.
  */
 void __init muen_sinfo_early_init_base(unsigned long long base_addr);
