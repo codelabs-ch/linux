@@ -193,8 +193,9 @@ static int __init muen_input_init(void)
 	muen_input_res.end   = irq_number;
 
 	muen_input->channel = (struct muchannel *)
-		ioremap_cache(region->data.mem.address,
-			      region->data.mem.size);
+		memremap(region->data.mem.address,
+			 region->data.mem.size,
+			 MEMREMAP_WB);
 
 	muen_input->pdev = platform_device_register_simple("muen-input", -1,
 							   &muen_input_res, 1);
@@ -290,7 +291,7 @@ error_alloc_ptr:
 error_alloc_kbd:
 	platform_device_unregister(muen_input->pdev);
 error_register_pdev:
-	iounmap(muen_input->channel);
+	memunmap(muen_input->channel);
 	kfree(muen_input);
 	return error;
 }
@@ -301,7 +302,7 @@ static void __exit muen_input_cleanup(void)
 	input_unregister_device(muen_input->ptr);
 	input_unregister_device(muen_input->kbd);
 	platform_device_unregister(muen_input->pdev);
-	iounmap(muen_input->channel);
+	memunmap(muen_input->channel);
 	kfree(muen_input);
 }
 
