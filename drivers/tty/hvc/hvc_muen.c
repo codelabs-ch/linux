@@ -34,6 +34,12 @@
 #define HVC_MUEN_PROTOCOL 0x6876635f6d75656eUL /* "hvc_muen" in hex */
 #define HVC_MUEN_MAX_COUNT HVC_ALLOC_TTY_ADAPTERS
 
+typedef void (*send_func_t)(struct muchannel *, const char *, int);
+
+typedef void (*output_init_func_t)(struct muchannel *,
+				   const uint64_t,
+				   const uint64_t);
+
 struct muencons_info {
 	struct list_head list;
 	struct hvc_struct *hvc;
@@ -44,6 +50,8 @@ struct muencons_info {
 	int vtermno;
 	int event;
 	int vector;
+	send_func_t send;
+	output_init_func_t output_init;
 };
 
 /* CPU to which Muen HVC driver is pinned to */
@@ -123,9 +131,7 @@ static void send_dbglog(struct muchannel *chan, const char *data, int count)
 	}
 }
 
-typedef void (*send_func_t)(struct muchannel *, const char *, int);
-
-static send_func_t send_func = send_hvc;
+static send_func_t early_send = send_hvc;
 
 static void output_init_hvc(struct muchannel *chan,
 			    const uint64_t channel_size,
@@ -143,11 +149,7 @@ static void output_init_dbglog(struct muchannel *chan,
 				 sizeof(struct log_msg), channel_size, epoch);
 }
 
-typedef void (*output_init_func_t)(struct muchannel *,
-				   const uint64_t,
-				   const uint64_t);
-
-static output_init_func_t output_init_func = output_init_hvc;
+static output_init_func_t early_output_init = output_init_hvc;
 
 static struct muencons_info *vtermno_to_cons(int vtermno)
 {
@@ -178,7 +180,7 @@ static int hvc_muen_put(uint32_t vtermno, const char *data, int count)
 	if (cons == NULL || !cons->channel_out)
 		return -EINVAL;
 
-	send_func(cons->channel_out, data, count);
+	cons->send(cons->channel_out, data, count);
 
 	if (cons->event >= 0)
 		kvm_hypercall0(cons->event);
@@ -372,12 +374,22 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		goto error;
 	}
 
+	/* debuglog is currently only supported for channel 0 */
+	if (dbglog && index == 0) {
+		pr_info("hvc_muen[%d]: Using debuglog protocol\n", index);
+		info->send = send_dbglog;
+		info->output_init = output_init_dbglog;
+	} else {
+		info->send = send_hvc;
+		info->output_init = output_init_hvc;
+	}
+
 	/*
 	 * Do not re-init channel for console 0 if already done by earlycon code.
 	 * Otherwise we will lose log messages.
 	 */
 	if (early_out_len == 0 || index > 0)
-		output_init_func(info->channel_out, info->channel_size, epoch);
+		info->output_init(info->channel_out, info->channel_size, epoch);
 
 	if (info->channel_in)
 		muen_channel_init_reader(&info->reader, HVC_MUEN_PROTOCOL);
@@ -494,12 +506,6 @@ static int __init hvc_muen_console_init(void)
 		return -EINVAL;
 	}
 
-	if (dbglog) {
-		pr_info("hvc_muen[0]: Using debuglog protocol\n");
-		send_func = send_dbglog;
-		output_init_func = output_init_dbglog;
-	}
-
 	if (!muen_smp_one_match(&evt, out[0], MUEN_RES_EVENT))
 		pr_debug("hvc_muen[0]: No event for initial console %s\n", out[0]);
 	else
@@ -524,7 +530,7 @@ static void hvc_muen_earlycon_write(struct console *co,
 				    const char *data,
 				    unsigned int count)
 {
-	send_func(early_out, data, count);
+	early_send(early_out, data, count);
 }
 
 static int __init hvc_muen_earlycon_cleanup(struct console *con)
@@ -620,8 +626,8 @@ static int __init hvc_muen_earlycon_setup(struct earlycon_device *device, const 
 		return ret;
 	}
 	if (early_get_dbglog(boot_command_line)) {
-		send_func = send_dbglog;
-		output_init_func = output_init_dbglog;
+		early_send = send_dbglog;
+		early_output_init = output_init_dbglog;
 	}
 
 	muen_sinfo_early_init_base(sinfo_base);
@@ -639,7 +645,7 @@ static int __init hvc_muen_earlycon_setup(struct earlycon_device *device, const 
 		pr_warn("hvc_muen: Unable to map memory for earlycon");
 		return -ENOMEM;
 	}
-	output_init_func(early_out, early_out_len, 1);
+	early_output_init(early_out, early_out_len, 1);
 	device->con->write = hvc_muen_earlycon_write;
 	device->con->exit = hvc_muen_earlycon_cleanup;
 	device->port.iotype = UPIO_MEM;
