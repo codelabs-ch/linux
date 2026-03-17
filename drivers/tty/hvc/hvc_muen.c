@@ -332,20 +332,20 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		if (inres) {
 			if (muen_smp_one_match(&vec, in[index],
 					       MUEN_RES_VECTOR)) {
-				if (vec.cpu != hvc_muen_cpu) {
-					if (hvc_muen_cpu != -1)
-						pr_info("hvc_muen[%d]: Input vector affinity mismatch %d != %d\n",
-							index, evt.cpu,
-							hvc_muen_cpu);
+				if (hvc_muen_cpu == -1)
+					hvc_muen_set_cpu(vec.cpu);
+
+				if (vec.cpu != hvc_muen_cpu)
+					pr_info("hvc_muen[%d]: Input vector affinity mismatch %d != %d\n",
+						index, evt.cpu,
+						hvc_muen_cpu);
+				else {
+					if (vec.res.data.number >= ISA_IRQ_VECTOR(0))
+						vecno = vec.res.data.number - ISA_IRQ_VECTOR(0);
 					else
-						hvc_muen_set_cpu(vec.cpu);
-				} else if (vec.res.data.number >=
-					   ISA_IRQ_VECTOR(0))
-					vecno = vec.res.data.number -
-						ISA_IRQ_VECTOR(0);
-				else
-					pr_warn("hvc_muen[%d]: Input vector %d invalid\n",
-						index, vec.res.data.number);
+						pr_warn("hvc_muen[%d]: Input vector %d invalid\n",
+							index, vec.res.data.number);
+				}
 			} else
 				pr_debug(
 					"hvc_muen[%d]: No vector data for input channel %s\n",
