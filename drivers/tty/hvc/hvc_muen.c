@@ -373,10 +373,10 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 	}
 
 	/*
-	 * Do not re-init channel if already done by earlycon code.
+	 * Do not re-init channel for console 0 if already done by earlycon code.
 	 * Otherwise we will lose log messages.
 	 */
-	if (early_out_len == 0)
+	if (early_out_len == 0 || index > 0)
 		output_init_func(info->channel_out, info->channel_size, epoch);
 
 	if (info->channel_in)
