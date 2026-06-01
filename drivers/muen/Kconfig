@@ -51,4 +51,14 @@ config MUEN_SMP
 	help
 	  SMP support driver for Muen Linux.
 
+config MUEN_IRQ
+	bool "Muen IRQ chip support"
+	depends on ARM64 && ARCH_MUEN
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_IRQ_CHIP
+	help
+	  This driver implements the Muen virtual IRQ chip device driver
+	  based on the ARM GIC-400 Virtual CPU Interface.
+
 endmenu

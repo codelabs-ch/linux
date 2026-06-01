@@ -14,10 +14,14 @@
  * GNU General Public License for more details.
  */
 
+#include "linux/init.h"
 #include <linux/cpu.h>
+#include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 
 #include <muen/smp.h>
+
+#include "muen-clkevt.h"
 
 /* CPU resource affinity handling */
 static DEFINE_SPINLOCK(affinity_list_lock);
@@ -46,12 +50,26 @@ static void cpu_list_add_entry(const struct muen_resource_type *const res)
 static void allocate_vector(const struct muen_resource_type *const res)
 {
 	const int this_cpu = smp_processor_id();
-	const unsigned int vec = res->data.number;
-	int irq;
+	const unsigned int hwirq = res->data.number;
 
-	irq = irq_create_mapping(NULL, vec);
-	pr_info("muen-smp: Allocating IRQ %u for event %s (CPU#%d)\n",
-		irq, res->name.data, this_cpu);
+	/*
+	 * Note that currently only shared perpheral interrupts (SPI) on an
+	 * ARM Gerneric Interrupt Controller GIC-400 (virtual CPU interface)
+	 * are supported on arm64 platforms.
+	 */
+	if (hwirq < 32) {
+		pr_err("muen-smp: Only shared peripheral interrupts (SPI) are supported, requested hwirq %u can not be mapped\n", hwirq);
+		BUG();
+	}
+
+	struct irq_domain *domain;
+
+	domain = irq_get_default_host();
+
+	int virq = irq_create_mapping(domain, hwirq);
+
+	pr_info("muen-smp: Allocate irq with hwirq %u, virq %u for event %s (CPU#%d)\n",
+				hwirq, virq, res->name.data, this_cpu);
 }
 
 static bool register_resource(
@@ -206,10 +224,22 @@ void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free)
 }
 EXPORT_SYMBOL(muen_smp_free_res_affinity);
 
+/*
+ * Note that only single core Linux VMs are currently supported on
+ * arm64 platforms. But in preparation for SMP, the same file and
+ * design approach is used as for the x86/64 architecture.
+ */
 static int __init muen_smp_init(void)
 {
 	muen_sinfo_log_resources();
 	muen_register_resources();
+
+	if (IS_ENABLED(CONFIG_MUEN_CLKSRC)) {
+		muen_setup_timer_page(0);
+		muen_setup_timer_event();
+		muen_register_clockevent_dev();
+	}
+
 	return 0;
 }
 console_initcall(muen_smp_init);
