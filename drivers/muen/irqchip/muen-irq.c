@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2023-2024  Tobias Brunner <tobias@codelabs.ch>
- * Copyright (C) 2019-2023  David Loosli <dave@codelabs.ch>
+ * Copyright (C) 2019-2026  David Loosli <dave@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ static inline bool is_spi_interrupt(unsigned long hardware_irq)
 	return hardware_irq >= 32 && hardware_irq <= 1119;
 }
 
-struct muensk_irq_data {
+struct muen_irqchip_data {
 	struct irq_chip chip;
 	unsigned long physical_address;
 	void __iomem *raw_address;
@@ -91,10 +91,10 @@ struct muensk_irq_data {
 	bool initialized;
 };
 
-static struct muensk_irq_data muensk_data;
+static struct muen_irqchip_data muen_chip_data;
 
 /**
- * muensk_irq_domain_map - Maps an interrupt based on its hardware
+ * muen_irq_domain_map - Maps an interrupt based on its hardware
  * id and its type, i.e. software generated and private peripheral
  * interrupts per cpu with the respective domain info, flags and
  * irq handler function and shared peripheral interrupts with no
@@ -108,40 +108,40 @@ static struct muensk_irq_data muensk_data;
  * Returns 0 for success or an error (c.f. kernel/irq/irqdesc.c,
  * irq_set_percpu_devid_partition) otherwise.
  */
-static int muensk_irq_domain_map(
+static int muen_irq_domain_map(
 	struct irq_domain *d, unsigned int irq, irq_hw_number_t hw
 )
 {
-	pr_debug("Muen SK IRQ Chip - domain map the IRQ No: %ld", hw);
+	pr_debug("%s: Domain map the irq %ld", muen_chip_data.chip.name, hw);
 
 	if (is_sgi_interrupt(hw) || is_ppi_interrupt(hw)) {
-		irq_domain_set_info(d, irq, hw, &(muensk_data.chip), d->host_data,
+		irq_domain_set_info(d, irq, hw, &(muen_chip_data.chip), d->host_data,
 			handle_percpu_devid_irq, NULL, NULL);
 		return irq_set_percpu_devid(irq);
 	}
 
-	irq_domain_set_info(d, irq, hw, &(muensk_data.chip), d->host_data,
+	irq_domain_set_info(d, irq, hw, &(muen_chip_data.chip), d->host_data,
 		handle_fasteoi_irq, NULL, NULL);
 	irq_set_noprobe(irq);
 	return 0;
 }
 
 /**
- * muensk_irq_domain_unmap - Unmaps an interrupt based on the
+ * muen_irq_domain_unmap - Unmaps an interrupt based on the
  * irq domain reset function. This function is part of the irq
  * domain ops specification.
  *
  * @d  :	the interrupt domain
  * @irq:	the software interrupt number
  */
-static void muensk_irq_domain_unmap(struct irq_domain *d, unsigned int irq)
+static void muen_irq_domain_unmap(struct irq_domain *d, unsigned int irq)
 {
-	pr_debug("Muen SK IRQ Chip - domain unmap the IRQ No: %d", irq);
+	pr_debug("%s: Domain unmap the irq %d", muen_chip_data.chip.name, irq);
 	irq_domain_reset_irq_data(irq_get_irq_data(irq));
 }
 
 /**
- * muensk_irq_domain_xlate - Translates the interrupt properties
+ * muen_irq_domain_xlate - Translates the interrupt properties
  * provided by the device tree according to the interrupt type.
  * This function is part of the irq domain ops specification.
  *
@@ -158,7 +158,7 @@ static void muensk_irq_domain_unmap(struct irq_domain *d, unsigned int irq)
  * for [0], hardware irq id for [1] and interrupt type for
  * [2] with edge, level etc.).
  */
-static int muensk_irq_domain_xlate(
+static int muen_irq_domain_xlate(
 	struct irq_domain *d, struct device_node *ctrlr,
 	const u32 *intspec, unsigned int intsize,
 	unsigned long *out_hwirq, unsigned int *out_type
@@ -167,8 +167,8 @@ static int muensk_irq_domain_xlate(
 	if (WARN_ON(intsize != 3))
 		return -EINVAL;
 
-	pr_debug("Muen SK IRQ Chip - domain xlate with IRQ specification: %d / %d / %d",
-		 intspec[0], intspec[1], intspec[2]);
+	pr_debug("%s: Domain xlate with irq specification: %d / %d / %d",
+		 muen_chip_data.chip.name, intspec[0], intspec[1], intspec[2]);
 
 	if (intspec[0] == SGI_INTERRUPT_TYPE) {
 		*out_hwirq = intspec[1];
@@ -190,7 +190,7 @@ static int muensk_irq_domain_xlate(
 }
 
 /**
- * muensk_mask - Masking should disable the signaling of an
+ * muen_mask - Masking should disable the signaling of an
  * interrupt to the core, but is neither required for this
  * approach (c.f. description) nor (yet) supported. For a
  * Muen SK system unmasking has to be provided by the
@@ -200,13 +200,13 @@ static int muensk_irq_domain_xlate(
  *
  * @data :	the interrupt data
  */
-void muensk_mask(struct irq_data *data)
+void muen_mask(struct irq_data *data)
 {
-	pr_debug("Muen SK IRQ Chip - mask called with IRQ No: %ld", data->hwirq);
+	pr_debug("%s: Mask called with irq %ld", muen_chip_data.chip.name, data->hwirq);
 }
 
 /**
- * muensk_unmask - Unmasking should enable the signaling of
+ * muen_unmask - Unmasking should enable the signaling of
  * an interrupt to the core, but is neither required for
  * this approach (c.f. description) nor (yet) supported.
  * For a Muen SK system unmasking has to be provided by
@@ -216,37 +216,37 @@ void muensk_mask(struct irq_data *data)
  *
  * @data :	the interrupt data
  */
-void muensk_unmask(struct irq_data *data)
+void muen_unmask(struct irq_data *data)
 {
-	pr_debug("Muen SK IRQ Chip - unmask called with IRQ No: %ld", data->hwirq);
+	pr_debug("%s: Unmask called with irq %ld", muen_chip_data.chip.name, data->hwirq);
 }
 
 /**
- * muensk_ack - Acknowledging should mark an interrupt to
+ * muen_ack - Acknowledging should mark an interrupt to
  * be actively handled, but is not required for this
  * approach (c.f. description). This function is part of
  * the irq chip ops specification.
  *
  * @data :	the interrupt data
  */
-void muensk_ack(struct irq_data *data) { }
+void muen_ack(struct irq_data *data) { }
 
 /**
- * muensk_ack - Signals the end of the interrupt handling.
+ * muen_eoi - Signals the end of the interrupt handling.
  * For the currently used approach, this is done by writing
  * to the deactivation register (c.f. description). This
  * function is part of the irq chip ops specification.
  *
  * @data :	the interrupt data
  */
-void muensk_eoi(struct irq_data *data)
+void muen_eoi(struct irq_data *data)
 {
-	writel_relaxed(data->hwirq, muensk_data.raw_address + IRQ_DEACTIVATE_INTERRUPT_OFFSET);
+	writel_relaxed(data->hwirq, muen_chip_data.raw_address + IRQ_DEACTIVATE_INTERRUPT_OFFSET);
 	isb();
 }
 
 /**
- * muensk_handle_irq - Called by the Linux kernel scheduling
+ * muen_handle_irq - Called by the Linux kernel scheduling
  * and exception handling process for every interrupt raised
  * on the core's interface. For the currently used approach,
  * this function acknowledges and drops the priority of the
@@ -255,18 +255,18 @@ void muensk_eoi(struct irq_data *data)
  *
  * @regs :	the registers stored at exception entry
  */
-static void __exception_irq_entry muensk_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry muen_handle_irq(struct pt_regs *regs)
 {
 	u32 irq_status, irq_number;
 
 	do {
-		irq_status = readl_relaxed(muensk_data.raw_address + IRQ_ACKNOWLEDGE_OFFSET);
+		irq_status = readl_relaxed(muen_chip_data.raw_address + IRQ_ACKNOWLEDGE_OFFSET);
 		irq_number = irq_status & IRQ_ACKNOWLEDGE_MASK;
 
 		if (irq_number != IRQ_NO_PENDING_GROUP_1_VALUE &&
 		    irq_number != IRQ_NO_PENDING_GROUP_0_VALUE) {
-			writel_relaxed(irq_status, muensk_data.raw_address + IRQ_END_OF_INTERRUPT_OFFSET);
-			generic_handle_domain_irq(muensk_data.domain, irq_number);
+			writel_relaxed(irq_status, muen_chip_data.raw_address + IRQ_END_OF_INTERRUPT_OFFSET);
+			generic_handle_domain_irq(muen_chip_data.domain, irq_number);
 			continue;
 		}
 		break;
@@ -274,58 +274,58 @@ static void __exception_irq_entry muensk_handle_irq(struct pt_regs *regs)
 }
 
 /**
- * muensk_set_affinity - Set CPU affinity. Currently a no-op as we don't support
+ * muen_set_affinity - Set CPU affinity. Currently a no-op as we don't support
  * more than one CPU.
  */
-static int muensk_set_affinity(struct irq_data *d,
+static int muen_set_affinity(struct irq_data *d,
 			       const struct cpumask *mask_val, bool force)
 {
+	pr_err("%s: Unable to set CPU affinity, no SMP support", muen_chip_data.chip.name);
 	return IRQ_SET_MASK_OK_DONE;
 }
 
 /**
- * muensk_ipi_send_mask - Send an IPI to CPUs in mask. Currently a no-op.
+ * muen_ipi_send_mask - Send an IPI to CPUs in mask. Currently a no-op.
  */
-static void muensk_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
+static void muen_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 {
 	if (likely(nr_cpu_ids == 1))
 		return;
 
-	pr_err("ERROR %s: unable to send IPI, no SMP support",
-	       muensk_data.chip.name);
+	pr_err("%s: Unable to send IPI, no SMP support", muen_chip_data.chip.name);
 }
 
 /**
  * Configuration objects
  */
-static const struct irq_chip muensk_chip = {
-	.name             = "Muen SK - (virtual) IRQ Chip, version 0.9",
-	.irq_mask         = muensk_mask,
-	.irq_unmask       = muensk_unmask,
-	.irq_ack          = muensk_ack,
-	.irq_eoi          = muensk_eoi,
-	.irq_set_affinity = muensk_set_affinity,
-	.ipi_send_mask    = muensk_ipi_send_mask,
+static const struct irq_chip muen_irq_chip = {
+	.name             = "muen-irqchip",
+	.irq_mask         = muen_mask,
+	.irq_unmask       = muen_unmask,
+	.irq_ack          = muen_ack,
+	.irq_eoi          = muen_eoi,
+	.irq_set_affinity = muen_set_affinity,
+	.ipi_send_mask    = muen_ipi_send_mask,
 	.flags            = IRQCHIP_SKIP_SET_WAKE,
 };
 
-static const struct irq_domain_ops muensk_irq_domain_ops = {
-	.map   = muensk_irq_domain_map,
-	.unmap = muensk_irq_domain_unmap,
-	.xlate = muensk_irq_domain_xlate,
+static const struct irq_domain_ops muen_irq_domain_ops = {
+	.map   = muen_irq_domain_map,
+	.unmap = muen_irq_domain_unmap,
+	.xlate = muen_irq_domain_xlate,
 };
 
 /**
- * muensk_smp_init - Initializes SMP/IPI subsystem as these IRQs are e.g.
+ * muen_smp_init - Initializes SMP/IPI subsystem as these IRQs are e.g.
  * enumerated by /proc/interrupts and would cause NULL-pointer dereferences
  * otherwise.
  */
-static __init void muensk_smp_init(void)
+static __init void muen_smp_init(void)
 {
 	int i, virq, base_sgi;
 
 	for (i = 0; i < NUMBER_OF_SGI_INTERRUPTS; i++) {
-		virq = irq_create_mapping(muensk_data.domain, i);
+		virq = irq_create_mapping(muen_chip_data.domain, i);
 		if (i == 0)
 			base_sgi = virq;
 	}
@@ -337,7 +337,7 @@ static __init void muensk_smp_init(void)
 }
 
 /**
- * muensk_component_address - Reads the start address of the
+ * muen_component_address - Reads the start address of the
  * irq controller address from the device tree.
  *
  * @node           :	the device tree node of the irq controller
@@ -345,12 +345,12 @@ static __init void muensk_smp_init(void)
  *
  * Returns the start address for success or an error otherwise.
  */
-unsigned long muensk_component_address(struct device_node *node, int resource_index)
+unsigned long muen_component_address(struct device_node *node, int resource_index)
 {
 	struct resource address_res;
 
 	if (of_address_to_resource(node, resource_index, &address_res) != 0) {
-		pr_err("ERROR %s: could not read physical address", muensk_data.chip.name);
+		pr_err("%s: Could not read physical address", muen_chip_data.chip.name);
 		return -1;
 	}
 
@@ -358,7 +358,7 @@ unsigned long muensk_component_address(struct device_node *node, int resource_in
 }
 
 /**
- * muensk_init - Called by the Linux kernel init process. The
+ * muen_chip_init - Called by the Linux kernel init process. The
  * Muen SK irq chip driver currently only supports a static
  * configuration with group 0 enabled, group 1 disabled,
  * default priority and binary point (c.f. description).
@@ -368,18 +368,18 @@ unsigned long muensk_component_address(struct device_node *node, int resource_in
  *
  * Returns 0 for success or an error otherwise.
  */
-static int __init muensk_init(struct device_node *node, struct device_node *parent)
+static int __init muen_chip_init(struct device_node *node, struct device_node *parent)
 {
-	muensk_data.chip = muensk_chip;
-	muensk_data.initialized = false;
+	muen_chip_data.chip = muen_irq_chip;
+	muen_chip_data.initialized = false;
 
 	if (WARN_ON(!node))
 		return -ENODEV;
 
-	muensk_data.physical_address = muensk_component_address(node, 0);
-	muensk_data.raw_address      = of_iomap(node, 0);
-	muensk_data.domain           = irq_domain_create_linear(
-		&node->fwnode, NUMBER_OF_INTERRUPTS, &muensk_irq_domain_ops, &muensk_data
+	muen_chip_data.physical_address = muen_component_address(node, 0);
+	muen_chip_data.raw_address      = of_iomap(node, 0);
+	muen_chip_data.domain           = irq_domain_create_linear(
+		&node->fwnode, NUMBER_OF_INTERRUPTS, &muen_irq_domain_ops, &muen_chip_data
 	);
 
 	/* Update nr_irqs according to our config as the default is only 64 and any
@@ -387,23 +387,24 @@ static int __init muensk_init(struct device_node *node, struct device_node *pare
 	 */
 	nr_irqs = NUMBER_OF_INTERRUPTS;
 
-	pr_info("%s (%s, addr: %#lx, nr_irqs: %u)", muensk_data.chip.name,
-		node->full_name, muensk_data.physical_address, nr_irqs);
+	pr_info("%s: Init irq chip device (%s, addr: %#lx, nr_irqs: %u)",
+		muen_chip_data.chip.name, node->full_name,
+		muen_chip_data.physical_address, nr_irqs);
 
-	muensk_smp_init();
+	muen_smp_init();
 
-	set_handle_irq(muensk_handle_irq);
+	set_handle_irq(muen_handle_irq);
 
-	irq_set_default_host(muensk_data.domain);
+	irq_set_default_host(muen_chip_data.domain);
 
-	writel_relaxed(IRQ_DEFAULT_CONTROL, muensk_data.raw_address + IRQ_CONTROL_OFFSET);
-	writel_relaxed(IRQ_DEFAULT_PRIORITY, muensk_data.raw_address + IRQ_PRIORITY_MASK_OFFSET);
-	writel_relaxed(IRQ_DEFAULT_BINARY_POINT, muensk_data.raw_address + IRQ_BINARY_POINT_OFFSET);
+	writel_relaxed(IRQ_DEFAULT_CONTROL, muen_chip_data.raw_address + IRQ_CONTROL_OFFSET);
+	writel_relaxed(IRQ_DEFAULT_PRIORITY, muen_chip_data.raw_address + IRQ_PRIORITY_MASK_OFFSET);
+	writel_relaxed(IRQ_DEFAULT_BINARY_POINT, muen_chip_data.raw_address + IRQ_BINARY_POINT_OFFSET);
 
-	muensk_data.initialized = true;
+	muen_chip_data.initialized = true;
 
-	return muensk_data.initialized ? 0 : -1;
+	return muen_chip_data.initialized ? 0 : -1;
 }
-IRQCHIP_DECLARE(muensk_v0, "muensk,irq-v0", muensk_init);
+IRQCHIP_DECLARE(muen_irqchip, "muen,irqchip-v1.0", muen_chip_init);
 
-/** end of irq-muensk.c */
+/** end of irq-muen.c */
