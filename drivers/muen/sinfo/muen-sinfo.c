@@ -144,6 +144,20 @@ static bool log_resource(const struct muen_resource_type *const res, void *data)
 			res->data.devmem.flags & MEM_EXECUTABLE_FLAG
 				? "x" : "-",
 			res->name.data);
+		if (res->data.devmem.bar_config.bar_idx <= 5)
+			pr_info("muen-sinfo:  [BAR %d %s %s]\n",
+				res->data.devmem.bar_config.bar_idx,
+				res->data.devmem.bar_config.io_mem_flags & DEVMEM_PREFETCHABLE_FLAG
+				? "prefetchable" : "non-prefetchable",
+				res->data.devmem.bar_config.io_mem_flags & DEVMEM_64BIT_FLAG
+				? "64-bit" : "32-bit");
+		else if (res->data.devmem.bar_config.bar_idx == 6)
+			pr_info("muen-sinfo:  [expansion ROM]\n");
+		break;
+	case MUEN_RES_DEVPORT:
+		pr_info("muen-sinfo: device port [addr 0x%04x size 0x%04x, BAR %d] %s\n",
+			res->data.devport.address, res->data.devport.size,
+			res->data.devport.bar_idx, res->name.data);
 		break;
 	case MUEN_RES_EVENT:
 		pr_info("muen-sinfo: event [number %u] %s\n",
