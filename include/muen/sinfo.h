@@ -115,11 +115,14 @@ enum muen_dev_reset_method_kind {
 
 /* Required for explicit padding */
 #define largest_variant_size sizeof(struct muen_memregion_type)
-#define device_type_size 8
+#define device_type_size 14
 
 /* Structure holding information about a PCI device */
 struct muen_device_type {
 	uint16_t sid;
+	uint16_t vendor_id;
+	uint16_t device_id;
+	uint16_t class_code;
 	uint16_t irte_start;
 	uint8_t irq_start;
 	uint8_t ir_count;
