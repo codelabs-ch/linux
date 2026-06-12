@@ -32,7 +32,7 @@
 
 #include <linux/init.h>
 
-#define MUEN_SUBJECT_INFO_MAGIC	0x04006f666e69756dULL
+#define MUEN_SUBJECT_INFO_MAGIC	0x05006f666e69756dULL
 
 #define MAX_RESOURCE_COUNT	255
 #define MAX_NAME_LENGTH		63
@@ -41,6 +41,9 @@
 
 #define MEM_WRITABLE_FLAG	(1 << 0)
 #define MEM_EXECUTABLE_FLAG	(1 << 1)
+
+#define DEVMEM_PREFETCHABLE_FLAG	(1 << 0)
+#define DEVMEM_64BIT_FLAG		(1 << 1)
 
 #define DEV_MSI_FLAG		(1 << 0)
 
@@ -101,29 +104,62 @@ struct muen_memregion_type {
 	uint8_t hash[HASH_LENGTH];
 } __packed;
 
+/* PCI device reset methods */
+enum muen_dev_reset_method_kind {
+	MUEN_DEV_RESET_METHOD_NONE = 0,
+	MUEN_DEV_RESET_METHOD_FLR,
+	MUEN_DEV_RESET_METHOD_AF_FLR,
+	MUEN_DEV_RESET_METHOD_PM,
+	MUEN_DEV_RESET_METHOD_BUS
+} __packed;
+
 /* Required for explicit padding */
 #define largest_variant_size sizeof(struct muen_memregion_type)
-#define device_type_size 7
+#define device_type_size 14
 
 /* Structure holding information about a PCI device */
 struct muen_device_type {
 	uint16_t sid;
+	uint16_t vendor_id;
+	uint16_t device_id;
+	uint16_t class_code;
 	uint16_t irte_start;
 	uint8_t irq_start;
 	uint8_t ir_count;
 	uint8_t flags;
+	uint8_t reset_method;
 	char padding[largest_variant_size - device_type_size];
 } __packed;
 
-#define devmem_type_size (1 + 16)
+struct muen_bar_config_type {
+	uint8_t io_mem_flags;
+	uint8_t bar_idx;
+	char padding[3];
+	uint64_t bar_address;
+} __packed;
+
+#define devmem_type_size (2 + 1 + 13 + 2 * 8)
 
 /* Structure holding information about a device MMIO region */
 struct muen_devmem_type {
+	uint16_t sid;
 	uint8_t flags;
-	char padding1[7];
+	struct muen_bar_config_type bar_config;
 	uint64_t address;
 	uint64_t size;
-	char padding2[largest_variant_size - (devmem_type_size + 7)];
+	char padding[largest_variant_size - devmem_type_size];
+} __packed;
+
+#define devport_type_size (2 + 1 + 1 + 2 * 2)
+
+/* Structure holding information about a device I/O port */
+struct muen_devport_type {
+	uint16_t sid;
+	uint8_t bar_idx;
+	char padding1[1];
+	uint16_t address;
+	uint16_t size;
+	char padding2[largest_variant_size - devport_type_size];
 } __packed;
 
 /* Currently known resource types */
@@ -133,7 +169,8 @@ enum muen_resource_kind {
 	MUEN_RES_EVENT,
 	MUEN_RES_VECTOR,
 	MUEN_RES_DEVICE,
-	MUEN_RES_DEVMEM
+	MUEN_RES_DEVMEM,
+	MUEN_RES_DEVPORT
 };
 
 /* Resource data depending on the kind of resource */
@@ -141,6 +178,7 @@ union muen_resource_data {
 	struct muen_memregion_type mem;
 	struct muen_device_type dev;
 	struct muen_devmem_type devmem;
+	struct muen_devport_type devport;
 	uint8_t number;
 };
 
@@ -157,8 +195,8 @@ struct subject_info_type {
 	uint64_t magic;
 	uint32_t tsc_khz;
 	struct muen_name_type name;
-	uint16_t resource_count;
 	char padding[1];
+	uint16_t resource_count;
 	struct muen_resource_type resources[MAX_RESOURCE_COUNT];
 } __packed;
 
