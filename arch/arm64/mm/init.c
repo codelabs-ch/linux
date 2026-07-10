@@ -487,7 +487,7 @@ void __init mem_init(void)
  * code and data section) reserved and do nothing here (we have to define it
  * since free_initmem_default() also calls free_reserved_area() for this area).
  */
-#ifdef CONFIG_MUEN_GUEST
+#if defined(CONFIG_ARM64) && defined(CONFIG_MUEN_GUEST)
 void free_initmem(void) {}
 #else
 void free_initmem(void)

@@ -8311,7 +8311,7 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 	 * SMMU. Therefore move the DMA zone start behind the kernel binary
 	 * to make sure no DMA regquest hits this unmapped region.
 	 */
-#ifdef CONFIG_MUEN_GUEST
+#if defined(CONFIG_ARM64) && defined(CONFIG_MUEN_GUEST)
 	start_pfn = PHYS_PFN(__pa_symbol(_end));
 #else
 	start_pfn = PHYS_PFN(memblock_start_of_DRAM());

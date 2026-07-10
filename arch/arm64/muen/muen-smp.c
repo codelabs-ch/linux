@@ -242,4 +242,4 @@ static int __init muen_smp_init(void)
 
 	return 0;
 }
-console_initcall(muen_smp_init);
+core_initcall(muen_smp_init);

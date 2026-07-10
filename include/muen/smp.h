@@ -3,11 +3,20 @@
 
 #include <muen/sinfo.h>
 
+#ifdef CONFIG_ARM64
 /* Macro available on x86 and used by modules */
 #define ISA_IRQ_VECTOR(irq) (0)
 
 /* Defined for x86, but not for ARM64. Define here. */
 void kvm_hypercall0(unsigned int num);
+#endif
+
+#ifdef CONFIG_X86
+/*
+ * Initialize SMP on Muen SK.
+ */
+void __init muen_smp_init(void);
+#endif
 
 /* Resource to CPU affinity information */
 struct muen_cpu_affinity {
