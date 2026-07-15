@@ -61,4 +61,17 @@ config MUEN_IRQ
 	  This driver implements the Muen virtual IRQ chip device driver
 	  based on the ARM GIC-400 Virtual CPU Interface.
 
+if RTC_CLASS
+
+config MUEN_RTC
+	bool "Muen real time clock chip support"
+	depends on ARM64 && ARCH_MUEN
+	depends on OF && HAS_IOMEM
+	depends on MUEN_SINFO
+	help
+	  This driver implements the Muen virtual real time clock device
+	  driver for the time info memory provided by the time subject.
+
+endif # RTC_CLASS
+
 endmenu

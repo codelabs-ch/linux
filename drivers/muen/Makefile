@@ -5,3 +5,4 @@ obj-$(CONFIG_MUEN_PCI)		+= pci/
 obj-$(CONFIG_MUEN_INPUT)	+= input/
 obj-$(CONFIG_MUEN_SMP)		+= smp/
 obj-$(CONFIG_MUEN_IRQ)		+= irqchip/
+obj-$(CONFIG_MUEN_RTC)		+= rtc/
