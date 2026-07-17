@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2016  Reto Buerki <reet@codelabs.ch>
  * Copyright (C) 2016  Adrian-Ken Rueegsegger <ken@codelabs.ch>
+ * Copyright (C) 2026  David Loosli <david@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,20 +37,24 @@ static u64 muen_cs_read(struct clocksource *arg)
 	return this_cpu_read(counter);
 }
 
+#ifdef CONFIG_X86
 static int muen_cs_enable(struct clocksource *cs)
 {
 	vclocks_set_used(VDSO_CLOCKMODE_MVCLOCK);
 	return 0;
 }
+#endif
 
 static struct clocksource muen_cs = {
 	.name			= "muen-clksrc",
-	.rating			= 400,
+	.rating			= 600, /* Should be higher than ARM Generic Timer (=400) */
 	.read			= muen_cs_read,
 	.mask			= CLOCKSOURCE_MASK(64),
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
+#ifdef CONFIG_X86
 	.enable			= muen_cs_enable,
 	.vdso_clock_mode	= VDSO_CLOCKMODE_MVCLOCK,
+#endif
 };
 
 inline u64 muen_clock_read(void)
@@ -70,5 +75,6 @@ core_initcall(muen_cs_init);
 
 MODULE_AUTHOR("Reto Buerki <reet@codelabs.ch>");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
+MODULE_AUTHOR("David Loosli <david@codelabs.ch>");
 MODULE_DESCRIPTION("Muen clocksource driver");
 MODULE_LICENSE("GPL");
