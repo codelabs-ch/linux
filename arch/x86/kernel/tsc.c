@@ -259,11 +259,13 @@ bool using_native_sched_clock(void)
 {
 	return static_call_query(pv_sched_clock) == native_sched_clock;
 }
-#else
+#elifndef CONFIG_GENERIC_SCHED_CLOCK
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
 
 bool using_native_sched_clock(void) { return true; }
+#else
+bool using_native_sched_clock(void) { return false; }
 #endif
 
 int check_tsc_unstable(void)
