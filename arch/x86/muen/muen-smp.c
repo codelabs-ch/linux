@@ -31,8 +31,8 @@
 #include <asm/fpu/api.h>
 
 #include <muen/smp.h>
+#include <muen/timer.h>
 
-#include "muen-clkevt.h"
 
 static const char *const res_names[] = {
 	"none", "memory", "event", "vector", "device",

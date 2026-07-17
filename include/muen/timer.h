@@ -28,3 +28,7 @@ void muen_setup_timer_event(void);
 
 /* Register clockevents for calling CPU */
 void muen_register_clockevent_dev(void);
+
+void muen_arch_register_local_timer_interrupt(
+	struct clock_event_device *evt, uint8_t evt_nr);
+irqreturn_t muen_arch_local_timer_interrupt(void);
