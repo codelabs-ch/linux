@@ -324,7 +324,8 @@ static int muen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	return msi_device_populate_sysfs(&dev->dev);
 
 error_free_descs:
-	irq_free_descs(irq, nvec);
+	if (dev->irq >= NR_IRQS_LEGACY)
+		irq_free_descs(dev->irq, nvec);
 error_free_affinity:
 	muen_smp_free_res_affinity(&affinity);
 	return ret;
