@@ -472,18 +472,18 @@ static void hvc_muen_destroy(void)
 {
 	unsigned long flags;
 	struct muencons_info *entry, *next;
+	LIST_HEAD(pending);
 
 	spin_lock_irqsave(&muencons_lock, flags);
-	if (list_empty(&muencons)) {
-		spin_unlock_irqrestore(&muencons_lock, flags);
-		return;
-	}
+	list_splice_init(&muencons, &pending);
+	hvc_muen_cpu = -1;
+	hvc_muen_epoch = 0;
+	spin_unlock_irqrestore(&muencons_lock, flags);
 
-	list_for_each_entry_safe(entry, next, &muencons, list) {
+	list_for_each_entry_safe(entry, next, &pending, list) {
 		list_del(&entry->list);
 		if (entry->hvc != NULL)
 			hvc_remove(entry->hvc);
-		entry->hvc = NULL;
 		if (entry->channel_out) {
 			muen_channel_deactivate(entry->channel_out);
 			memunmap(entry->channel_out);
@@ -492,9 +492,6 @@ static void hvc_muen_destroy(void)
 			memunmap(entry->channel_in);
 		kfree(entry);
 	}
-	hvc_muen_cpu = -1;
-	hvc_muen_epoch = 0;
-	spin_unlock_irqrestore(&muencons_lock, flags);
 }
 
 static int __init hvc_muen_console_init(void)
