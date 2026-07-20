@@ -196,6 +196,12 @@ static int __init muen_input_init(void)
 		memremap(region->data.mem.address,
 			 region->data.mem.size,
 			 MEMREMAP_WB);
+	if (!muen_input->channel) {
+		pr_err("muen-input: Unable to map input channel '%s'\n",
+		       input_channel_name);
+		error = -ENOMEM;
+		goto error_map_channel;
+	}
 
 	muen_input->pdev = platform_device_register_simple("muen-input", -1,
 							   &muen_input_res, 1);
@@ -292,6 +298,7 @@ error_alloc_kbd:
 	platform_device_unregister(muen_input->pdev);
 error_register_pdev:
 	memunmap(muen_input->channel);
+error_map_channel:
 	kfree(muen_input);
 	return error;
 }
