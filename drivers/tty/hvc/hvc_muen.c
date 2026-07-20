@@ -339,7 +339,7 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 
 				if (vec.cpu != hvc_muen_cpu)
 					pr_info("hvc_muen[%d]: Input vector affinity mismatch %d != %d\n",
-						index, evt.cpu,
+						index, vec.cpu,
 						hvc_muen_cpu);
 				else {
 					if (vec.res.data.number >= ISA_IRQ_VECTOR(0))
