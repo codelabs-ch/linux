@@ -322,6 +322,11 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 	output = (struct muchannel *)memremap(outres->data.mem.address,
 					      outres->data.mem.size,
 					      MEMREMAP_WB);
+	if (!output) {
+		pr_err("hvc_muen[%d]: Unable to map output channel %s\n",
+		       index, out[index]);
+		return -ENOMEM;
+	}
 
 	pr_info("hvc_muen[%d]: Out channel %s @ 0x%llx, size 0x%llx, event %d\n",
 		index, out[index], outres->data.mem.address,
@@ -359,6 +364,12 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		if (inres) {
 			input = (struct muchannel *)memremap(
 				inres->data.mem.address, inres->data.mem.size, MEMREMAP_WB);
+			if (!input) {
+				pr_err("hvc_muen[%d]: Unable to map input channel %s\n",
+				       index, in[index]);
+				rc = -ENOMEM;
+				goto error;
+			}
 			pr_info("hvc_muen[%d]: In channel %s @ 0x%llx, size 0x%llx, vector %d\n",
 				index, in[index], inres->data.mem.address,
 				inres->data.mem.size, vecno);
