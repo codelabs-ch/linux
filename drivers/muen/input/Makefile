@@ -1,1 +1,1 @@
-obj-y += muen-input.o
+obj-$(CONFIG_MUEN_INPUT) += muen-input.o
