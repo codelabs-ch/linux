@@ -477,10 +477,8 @@ static void hvc_muen_destroy(void)
 			muen_channel_deactivate(entry->channel_out);
 			memunmap(entry->channel_out);
 		}
-		if (entry->channel_in) {
-			muen_channel_deactivate(entry->channel_out);
+		if (entry->channel_in)
 			memunmap(entry->channel_in);
-		}
 		kfree(entry);
 	}
 	hvc_muen_cpu = -1;
