@@ -171,7 +171,7 @@ config ARCH_MESON
 config ARCH_MUEN
 	bool "Muen SK based systems"
 	select MUEN_GUEST
-	select MUENSK_IRQ
+	select MUEN_IRQ
 	help
 	  This enables support for the ARMv8 based Muen SK
 	  implementation.
