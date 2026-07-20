@@ -340,9 +340,21 @@ int muen_sinfo_setup(unsigned int cpu)
 			 sizeof(struct muen_scheduling_info_type),
 			 MEMREMAP_WB);
 
+	if (!sinfo || !sched_info) {
+		pr_err("muen-sinfo: Unable to map subject information\n");
+		if (sinfo)
+			memunmap((void *)sinfo);
+		if (sched_info)
+			memunmap((void *)sched_info);
+		return -ENOMEM;
+	}
+
 	per_cpu(subject_info, cpu) = sinfo;
 	if (!muen_check_magic()) {
 		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
+		per_cpu(subject_info, cpu) = NULL;
+		memunmap((void *)sinfo);
+		memunmap((void *)sched_info);
 		return -EINVAL;
 	}
 	per_cpu(scheduling_info, cpu) = sched_info;
