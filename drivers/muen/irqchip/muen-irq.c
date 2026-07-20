@@ -378,6 +378,11 @@ static int __init muen_chip_init(struct device_node *node, struct device_node *p
 
 	muen_chip_data.physical_address = muen_component_address(node, 0);
 	muen_chip_data.raw_address      = of_iomap(node, 0);
+	if (!muen_chip_data.raw_address) {
+		pr_err("%s: Could not map irq controller registers\n",
+		       muen_chip_data.chip.name);
+		return -ENOMEM;
+	}
 	muen_chip_data.domain           = irq_domain_create_linear(
 		&node->fwnode, NUMBER_OF_INTERRUPTS, &muen_irq_domain_ops, &muen_chip_data
 	);
