@@ -109,7 +109,8 @@ inline void kvm_hypercall0(unsigned int num)
 	asm volatile("mov   x0, %[num]\n"
 		     "hvc #1"
 		     : /* no outputs */
-		     : [num] "r"(num));
+		     : [num] "r"(num)
+		     : "x0", "memory");
 }
 EXPORT_SYMBOL(kvm_hypercall0);
 
