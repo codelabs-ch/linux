@@ -16,9 +16,15 @@
  */
 
 #include <linux/clocksource.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/sched_clock.h>
 #include <muen/sinfo.h>
+
+#ifdef CONFIG_X86
+#include <asm/paravirt.h>
+#include <asm/timer.h>
+#endif
 
 static DEFINE_PER_CPU_ALIGNED(uint64_t, current_end);
 static DEFINE_PER_CPU_ALIGNED(uint64_t, counter);
@@ -37,20 +43,25 @@ static u64 muen_cs_read(struct clocksource *arg)
 	return this_cpu_read(counter);
 }
 
-/*
- * Note that the clocksource for arm64 currently does not support vDSO
- * mode (i.e. direct access by the user space to clock counter, so no
- * is syscall required), because the VDSO_CLOCKMODE_MVCLOCK flag does
- * not seem to be implemented (see VDSO_CLOCKMODE_ARCHTIMER). Further,
- * the rating has to be higher than the 400 of the ARM Generic Timer.
- */
+#ifdef CONFIG_X86
+static int muen_cs_enable(struct clocksource *cs)
+{
+	vclocks_set_used(VDSO_CLOCKMODE_MVCLOCK);
+	return 0;
+}
+#endif
+
 static struct clocksource muen_cs = {
 	.name			= "muen-clksrc",
+	/* Must outrank the ARMv8-A Generic Timer, which is rated 400. */
 	.rating			= 600,
 	.read			= muen_cs_read,
 	.mask			= CLOCKSOURCE_MASK(64),
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
-	.vdso_clock_mode	= VDSO_CLOCKMODE_NONE
+#ifdef CONFIG_X86
+	.enable			= muen_cs_enable,
+	.vdso_clock_mode	= VDSO_CLOCKMODE_MVCLOCK,
+#endif
 };
 
 inline u64 muen_clock_read(void)
@@ -59,15 +70,48 @@ inline u64 muen_clock_read(void)
 }
 EXPORT_SYMBOL(muen_clock_read);
 
-/*
- * Note that 'paravirt_set_sched_clock' is not available for arm64, so
- * a normal scheduling clock device is registered. Using this approach,
- * Linux takes over the counter cycle to ns conversion.
- */
+#ifdef CONFIG_GENERIC_SCHED_CLOCK
+static __always_inline void muen_setup_sched_clock(void)
+{
+	pr_info("muen-clksrc: Initialize clock with %llu khz\n",
+		muen_get_tsc_khz());
+	sched_clock_register(muen_clock_read, 64, muen_get_tsc_khz() * 1000);
+}
+#elif defined(CONFIG_PARAVIRT)
+static struct cyc2ns_data muen_cyc2ns __ro_after_init;
+
+static u64 notrace muen_sched_clock_read(void)
+{
+	u64 ns;
+
+	ns = muen_cyc2ns.cyc2ns_offset;
+	ns += mul_u64_u32_shr(muen_clock_read(), muen_cyc2ns.cyc2ns_mul,
+			      muen_cyc2ns.cyc2ns_shift);
+	return ns;
+}
+
+static __always_inline void muen_setup_sched_clock(void)
+{
+	struct cyc2ns_data *d = &muen_cyc2ns;
+	u64 tsc_now = muen_clock_read();
+
+	clocks_calc_mult_shift(&d->cyc2ns_mul, &d->cyc2ns_shift,
+			       muen_get_tsc_khz(), NSEC_PER_MSEC, 0);
+	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
+					   d->cyc2ns_shift);
+
+	pr_info("muen-clksrc: Using clock offset of %llu ns\n",
+		d->cyc2ns_offset);
+
+	paravirt_set_sched_clock(muen_sched_clock_read);
+}
+#else
+#error "MUEN_CLKSRC requires either GENERIC_SCHED_CLOCK or PARAVIRT"
+#endif
+
 static int __init muen_cs_init(void)
 {
-	pr_info("muen-clksrc: Initialize clock with %llu khz\n", muen_get_tsc_khz());
-	sched_clock_register(muen_clock_read, 64, muen_get_tsc_khz() * 1000);
+	muen_setup_sched_clock();
 	clocksource_register_khz(&muen_cs, muen_get_tsc_khz());
 	return 0;
 }
