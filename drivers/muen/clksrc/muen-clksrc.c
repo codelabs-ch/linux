@@ -29,7 +29,7 @@
 static DEFINE_PER_CPU_ALIGNED(uint64_t, current_end);
 static DEFINE_PER_CPU_ALIGNED(uint64_t, counter);
 
-static u64 muen_cs_read(struct clocksource *arg)
+static u64 notrace muen_cs_read(struct clocksource *arg)
 {
 	const uint64_t next_end = muen_get_sched_end();
 
