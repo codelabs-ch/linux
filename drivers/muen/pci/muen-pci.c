@@ -344,16 +344,16 @@ static void muen_teardown_msi_irq(unsigned int irq)
 static int muen_get_eoi_event(unsigned int vector)
 {
 	char name[MAX_NAME_LENGTH + 1];
-	const struct muen_resource_type *res;
+	struct muen_cpu_affinity affinity;
 
 	memset(name, 0, sizeof(name));
 	snprintf(name, MAX_NAME_LENGTH, "unmask_irq_%u", vector);
 
-	res = muen_get_resource(name, MUEN_RES_EVENT);
-	if (!res)
+	bool found = muen_smp_one_match(&affinity, name, MUEN_RES_EVENT);
+	if (!found)
 		return -EINVAL;
 
-	return res->data.number;
+	return affinity.res.data.number;
 }
 
 static int muen_enable_irq(struct pci_dev *dev)
@@ -383,8 +383,8 @@ static int muen_enable_irq(struct pci_dev *dev)
 	}
 	ret = muen_get_eoi_event(virq);
 	if (ret < 0) {
-		dev_err(&dev->dev, "EOI event for IRQ %d not present\n",
-				dev->irq);
+		dev_err(&dev->dev, "EOI event for IRQ %d (vector %d) not present\n",
+				dev->irq, virq);
 		ret = -EINVAL;
 		goto error_free_desc;
 	}
@@ -393,8 +393,8 @@ static int muen_enable_irq(struct pci_dev *dev)
 	irq_set_chip_data(dev->irq, (void *)event_nr);
 	irq_set_chip_and_handler_name(dev->irq, &pci_chip,
 			handle_fasteoi_irq, "fasteoi");
-	dev_info(&dev->dev, "PCI IRQ %d (EOI event: %lu)\n", dev->irq,
-				 event_nr);
+	dev_info(&dev->dev, "PCI IRQ %d (EOI event: %lu) pinned to CPU %u\n",
+			dev->irq, event_nr, affinity.cpu);
 
 	muen_smp_free_res_affinity(&affinity);
 	return 0;
