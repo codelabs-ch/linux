@@ -81,6 +81,7 @@ void muen_setup_timer_page(unsigned int cpu)
 		addr, cpu);
 	timer_page = (struct subject_timed_event_type *)memremap
 		(addr, region->data.mem.size, MEMREMAP_WB);
+	BUG_ON(!timer_page);
 	per_cpu(timer, cpu) = timer_page;
 }
 
