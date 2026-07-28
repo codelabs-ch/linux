@@ -70,6 +70,9 @@
 
 	__EFI_PE_HEADER
 
+	b secondary_holding_pen
+
+
 	__INIT
 
 	/*
