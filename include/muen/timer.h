@@ -15,6 +15,12 @@
  * GNU General Public License for more details.
  */
 
+#ifndef MUEN_TIMER_H
+#define MUEN_TIMER_H
+
+#include <linux/clockchips.h>
+#include <linux/irqreturn.h>
+
 /*
  * Setup timer page for given CPU
  *
@@ -28,3 +34,9 @@ void muen_setup_timer_event(void);
 
 /* Register clockevents for calling CPU */
 void muen_register_clockevent_dev(void);
+
+int muen_arch_register_local_timer_interrupt(
+	struct clock_event_device *evt, uint8_t evt_nr);
+irqreturn_t muen_handle_local_timer_interrupt(void);
+
+#endif

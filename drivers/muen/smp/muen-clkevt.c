@@ -14,18 +14,12 @@
  * GNU General Public License for more details.
  */
 
-#include <asm/time.h>
-#include <asm/setup.h>
-#include <asm/irq_regs.h>
-#include <asm/idtentry.h>
-#include <asm/apic.h>
-
-#include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/clockchips.h>
+#include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <muen/sinfo.h>
+#include <muen/timer.h>
 
 struct subject_timed_event_type {
 	uint64_t tsc_trigger;
@@ -52,13 +46,17 @@ static int muen_timer_next_event(const unsigned long delta,
 	return 0;
 }
 
+/*
+ * Note that currently on arm64 platforms an ARM_ARCH_TIMER is still
+ * required for the early boot phase of the Linux kernel. Therefore,
+ * the rating has to be higher than the 400 of the ARM Generic Timer.
+ */
 static struct clock_event_device muen_clockevent = {
 	.name			= "muen-clkevt",
 	.features		= CLOCK_EVT_FEAT_ONESHOT,
 	.set_next_event		= muen_timer_next_event,
 	.set_state_shutdown	= muen_timer_shutdown,
 	.rating			= INT_MAX,
-	.irq			= -1,
 };
 
 static DEFINE_PER_CPU(struct clock_event_device, muen_events);
@@ -79,7 +77,7 @@ void muen_setup_timer_page(unsigned int cpu)
 
 	addr = region->data.mem.address + (cpu * PAGE_SIZE);
 
-	pr_info("muen-smp: Using timed event region at address 0x%llx for CPU#%u\n",
+	pr_info("muen-clkevt: Using timed event region at address 0x%llx for CPU#%u\n",
 		addr, cpu);
 	timer_page = (struct subject_timed_event_type *)memremap
 		(addr, region->data.mem.size, MEMREMAP_WB);
@@ -93,43 +91,45 @@ void muen_setup_timer_event(void)
 		timer_evt = muen_get_resource("timer", MUEN_RES_EVENT);
 	BUG_ON(!timer_evt);
 
-	pr_info("muen-smp: Using timed event %u for CPU#%u\n",
+	pr_info("muen-clkevt: Using timed event %u for CPU#%u\n",
 		timer_evt->data.number, smp_processor_id());
 	timer_page->event_nr = timer_evt->data.number;
 }
 
 void muen_register_clockevent_dev(void)
 {
-	const unsigned int cpu = smp_processor_id();
+	int err;
+	const struct muen_resource_type *const
+		timer_evt = muen_get_resource("timer", MUEN_RES_VECTOR);
 	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
 
-	pr_info("muen-smp: Registering timer for CPU#%u\n", cpu);
-	memcpy(evt, &muen_clockevent, sizeof(*evt));
-	evt->cpumask = cpumask_of(cpu);
-	clockevents_config_and_register(evt,
-			muen_get_tsc_khz() * 1000, 1, UINT_MAX);
-}
-
-static void local_timer_interrupt(void)
-{
-	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
-
-	if (!evt->event_handler) {
-		pr_warn("muen-smp: Spurious timer interrupt on cpu %d\n",
-			smp_processor_id());
+	WARN_ON(!timer_evt);
+	if (!timer_evt)
 		return;
-	}
-	inc_irq_stat(apic_timer_irqs);
 
-	evt->event_handler(evt);
+	memcpy(evt, &muen_clockevent, sizeof(*evt));
+
+	err = muen_arch_register_local_timer_interrupt(evt, timer_evt->data.number);
+	if (err)
+		return;
+
+	clockevents_config_and_register(evt,
+		muen_get_tsc_khz() * 1000, 1, UINT_MAX);
+
+	pr_info("muen-clkevt: Registered clockevent for CPU#%u\n", smp_processor_id());
 }
 
-DEFINE_IDTENTRY_SYSVEC(sysvec_muen_timer_interrupt)
+irqreturn_t muen_handle_local_timer_interrupt(void)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
+	struct clock_event_device *evt = this_cpu_ptr(&muen_events);
 
-	ack_APIC_irq();
-	local_timer_interrupt();
+	if (likely(evt->event_handler)) {
+		evt->event_handler(evt);
+		return IRQ_HANDLED;
+	}
 
-	set_irq_regs(old_regs);
+	pr_warn("muen-clkevt: Spurious timer interrupt or unattached event handler on cpu %d\n",
+		smp_processor_id());
+
+	return IRQ_NONE;
 }

@@ -20,8 +20,7 @@
 #include <linux/irqdomain.h>
 
 #include <muen/smp.h>
-
-#include "muen-clkevt.h"
+#include <muen/timer.h>
 
 /* CPU resource affinity handling */
 static DEFINE_SPINLOCK(affinity_list_lock);
