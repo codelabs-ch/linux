@@ -36,7 +36,7 @@ void muen_setup_timer_event(void);
 void muen_register_clockevent_dev(void);
 
 int muen_arch_register_local_timer_interrupt(
-	struct clock_event_device *evt, uint8_t evt_nr);
+	struct clock_event_device *evt, uint8_t hwirq);
 irqreturn_t muen_handle_local_timer_interrupt(void);
 
 #endif
