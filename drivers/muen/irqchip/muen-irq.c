@@ -257,16 +257,16 @@ void muen_eoi(struct irq_data *data)
  */
 static void __exception_irq_entry muen_handle_irq(struct pt_regs *regs)
 {
-	u32 irq_status, irq_number;
+	u32 irq_status, hwirq;
 
 	do {
 		irq_status = readl_relaxed(muen_chip_data.raw_address + IRQ_ACKNOWLEDGE_OFFSET);
-		irq_number = irq_status & IRQ_ACKNOWLEDGE_MASK;
+		hwirq = irq_status & IRQ_ACKNOWLEDGE_MASK;
 
-		if (irq_number != IRQ_NO_PENDING_GROUP_1_VALUE &&
-		    irq_number != IRQ_NO_PENDING_GROUP_0_VALUE) {
+		if (hwirq != IRQ_NO_PENDING_GROUP_1_VALUE &&
+		    hwirq != IRQ_NO_PENDING_GROUP_0_VALUE) {
 			writel_relaxed(irq_status, muen_chip_data.raw_address + IRQ_END_OF_INTERRUPT_OFFSET);
-			generic_handle_domain_irq(muen_chip_data.domain, irq_number);
+			generic_handle_domain_irq(muen_chip_data.domain, hwirq);
 			continue;
 		}
 		break;
