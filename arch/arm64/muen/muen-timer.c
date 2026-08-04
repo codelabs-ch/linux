@@ -33,14 +33,14 @@ static irqreturn_t muen_timer_handler(int irq, void *dev_id)
 }
 
 int muen_arch_register_local_timer_interrupt(
-	struct clock_event_device *evt, uint8_t evt_nr)
+	struct clock_event_device *evt, uint8_t hwirq)
 {
 	const unsigned int cpu = smp_processor_id();
 	struct irq_domain *domain = irq_get_default_host();
-	int virq = irq_find_mapping(domain, evt_nr);
+	int virq = irq_find_mapping(domain, hwirq);
 
 	WARN(!virq, "muen-clkevt: Failed to find IRQ mapping for hwirq %u on CPU#%u\n",
-	    evt_nr, cpu);
+	    hwirq, cpu);
 	if (!virq)
 		return -1;
 
@@ -54,7 +54,7 @@ int muen_arch_register_local_timer_interrupt(
 		return -1;
 
 	pr_info("muen-clkevt: Using timer (event '%s') hwirq %u, virq %u on CPU#%u\n",
-		evt->name, evt_nr, virq, cpu);
+		evt->name, hwirq, virq, cpu);
 
 	return 0;
 }
