@@ -362,8 +362,9 @@ EXPORT_SYMBOL(muen_sinfo_setup);
 
 void muen_sinfo_log_resources(void)
 {
-	pr_info("muen-sinfo: Subject exports %u resources\n",
-		per_cpu(subject_info, smp_processor_id())->resource_count);
+	pr_info("muen-sinfo: Subject on CPU#%u exports %u resources\n",
+		smp_processor_id(),
+		this_cpu_read(subject_info)->resource_count);
 	muen_for_each_resource(log_resource, NULL);
 }
 EXPORT_SYMBOL(muen_sinfo_log_resources);
