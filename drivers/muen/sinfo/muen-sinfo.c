@@ -300,6 +300,8 @@ void __init muen_sinfo_early_init_base(unsigned long long base_addr)
 
 	per_cpu(subject_info, smp_processor_id()) = sinfo;
 	per_cpu(scheduling_info, smp_processor_id()) = sched_info;
+
+	pr_info("muen-sinfo: Early Subject information    @ 0x%016llx\n", base_addr);
 }
 
 void __init muen_sinfo_early_init(void)
@@ -317,6 +319,8 @@ static int __init muen_sinfo_init(void)
 
 	ret = muen_sinfo_setup(smp_processor_id());
 
+	if (early_sinfo)
+		pr_info("muen-sinfo: Unmapping early Subject Information @ %016px\n", early_sinfo);
 	if (early_sinfo)
 		early_memunmap(early_sinfo, sizeof(struct subject_info_type));
 	if (early_sched_info)
