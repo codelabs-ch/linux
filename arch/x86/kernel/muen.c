@@ -113,8 +113,8 @@ static void __init muen_init_IRQ(void)
 	else
 		irq_work_evt = event->data.number;
 
-	native_init_IRQ();
-	init_ISA_irqs();
+	BUG_ON(x86_init.irqs.pre_vector_init != init_ISA_irqs);
+	native_init_IRQ(); // calls pre_vector_init == init_ISA_irqs
 }
 
 static unsigned long muen_get_tsc(void)
