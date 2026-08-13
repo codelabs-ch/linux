@@ -41,6 +41,8 @@ static int __init setup_sinfo_addr(char *arg)
 	if (kstrtoull(arg, 16, &sinfo_addr))
 		return -EINVAL;
 
+	muen_sinfo_early_init();
+
 	return 0;
 }
 
