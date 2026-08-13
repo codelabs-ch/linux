@@ -149,7 +149,7 @@ static void __init muen_platform_setup(void)
 
 static uint32_t __init muen_platform(void)
 {
-	muen_sinfo_early_init();
+	//muen_sinfo_early_init();
 	return muen_check_magic();
 }
 
