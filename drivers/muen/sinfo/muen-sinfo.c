@@ -353,7 +353,7 @@ int muen_sinfo_setup(unsigned int cpu)
 	}
 	per_cpu(scheduling_info, cpu) = sched_info;
 
-	pr_info("muen-sinfo: Subject information    @ 0x%016llx\n", base_addr);
+	pr_info("muen-sinfo: Subject information    @ 0x%016llx CPU#%u\n", base_addr, cpu);
 	pr_info("muen-sinfo: Scheduling information @ 0x%016llx\n",
 		base_addr + sinfo_page_size);
 	pr_info("muen-sinfo: Subject name is '%s'\n", muen_get_subject_name());
