@@ -39,6 +39,8 @@
 
 #include <asm/exception.h>
 
+#include <muen/smp.h>
+
 /*
  * Definitions
  */
@@ -392,6 +394,19 @@ static int __init muen_chip_init(struct device_node *node, struct device_node *p
 		muen_chip_data.physical_address, nr_irqs);
 
 	muen_irq_smp_init();
+
+	// TODO: Move to better place. Needs to run per-cpu or needs
+	// refactor to fit into PREPARE.
+	muen_smp_setup_events();
+	const struct muen_resource_type *const
+		event = muen_get_resource("work", MUEN_RES_EVENT);
+	BUG_ON(!event); /* arm64 harcodes arch_irq_work_has_interrupt() = true */
+
+	unsigned int cpu = 0;
+	if (cpu == 0)
+		muen_irq_work_evt = event->data.number;
+	if (cpu != 0)
+		BUG_ON(muen_irq_work_evt != event->data.number);
 
 	set_handle_irq(muen_handle_irq);
 
