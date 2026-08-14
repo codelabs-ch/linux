@@ -58,7 +58,7 @@ static void allocate_vector(const struct muen_resource_type *const res)
 	 */
 	if (hwirq < 32) {
 		pr_err("muen-smp: Only shared peripheral interrupts (SPI) are supported, requested hwirq %u can not be mapped\n", hwirq);
-		BUG();
+		//BUG();
 	}
 
 	struct irq_domain *domain;
