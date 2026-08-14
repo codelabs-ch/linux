@@ -437,9 +437,13 @@ void __init smp_cpus_done(unsigned int max_cpus)
 {
 	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
 	setup_cpu_features();
+	pr_info("smp_cpus_done: 1 !!!\n");
 	hyp_mode_check();
+	pr_info("smp_cpus_done: 2 !!!\n");
 	apply_alternatives_all();
+	pr_info("smp_cpus_done: 3 !!!\n");
 	mark_linear_text_alias_ro();
+	pr_info("smp_cpus_done: 4 !!!\n");
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -490,6 +494,8 @@ static int __init smp_cpu_setup(int cpu)
 {
 	const struct cpu_operations *ops;
 
+	pr_info("XXX smp_cpu_setup(%d)\n", cpu);
+
 	if (init_cpu_ops(cpu))
 		return -ENODEV;
 
@@ -498,6 +504,8 @@ static int __init smp_cpu_setup(int cpu)
 		return -ENODEV;
 
 	set_cpu_possible(cpu, true);
+
+	pr_info("XXX smp_cpu_setup(%d) -> POSSIBLE\n", cpu);
 
 	return 0;
 }
@@ -692,6 +700,8 @@ void __init smp_init_cpus(void)
 	else
 		acpi_parse_and_init_cpus();
 
+	pr_info("XXX cpu_count=%d -- nr_cpu_ids=%u\n", cpu_count, nr_cpu_ids);
+
 	if (cpu_count > nr_cpu_ids)
 		pr_warn("Number of cores (%d) exceeds configured maximum of %u - clipping\n",
 			cpu_count, nr_cpu_ids);
@@ -866,6 +876,8 @@ static void do_handle_IPI(int ipinr)
 
 	if ((unsigned)ipinr < NR_IPI)
 		trace_ipi_entry_rcuidle(ipi_types[ipinr]);
+
+	pr_info("!!! CPU#%u GOT IPI hwirq %d !!!\n", cpu, ipinr);
 
 	switch (ipinr) {
 	case IPI_RESCHEDULE:

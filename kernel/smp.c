@@ -626,6 +626,7 @@ static void __flush_smp_call_function_queue(bool warn_cpu_offline)
 	 */
 	prev = NULL;
 	llist_for_each_entry_safe(csd, csd_next, entry, node.llist) {
+		pr_info("call_function sync CPU#%u\n", smp_processor_id());
 		/* Do we wait until *after* callback? */
 		if (CSD_TYPE(csd) == CSD_TYPE_SYNC) {
 			smp_call_func_t func = csd->func;
@@ -659,6 +660,8 @@ static void __flush_smp_call_function_queue(bool warn_cpu_offline)
 	prev = NULL;
 	llist_for_each_entry_safe(csd, csd_next, entry, node.llist) {
 		int type = CSD_TYPE(csd);
+
+		pr_info("call_function async CPU#%u\n", smp_processor_id());
 
 		if (type != CSD_TYPE_TTWU) {
 			if (prev) {

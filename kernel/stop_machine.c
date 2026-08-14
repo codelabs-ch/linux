@@ -209,6 +209,8 @@ static int multi_cpu_stop(void *data)
 	unsigned long flags;
 	bool is_active;
 
+	pr_info("multi_cpu_stop: enter CPU#%u\n", smp_processor_id());
+
 	/*
 	 * When called from stop_machine_from_inactive_cpu(), irq might
 	 * already be disabled.  Save the state and restore it on exit.
@@ -229,6 +231,7 @@ static int multi_cpu_stop(void *data)
 		stop_machine_yield(cpumask);
 		newstate = READ_ONCE(msdata->state);
 		if (newstate != curstate) {
+			pr_info("multi_cpu_stop: state %d -> %d\n", curstate, newstate);
 			curstate = newstate;
 			switch (curstate) {
 			case MULTI_STOP_DISABLE_IRQ:
@@ -253,6 +256,8 @@ static int multi_cpu_stop(void *data)
 		}
 		rcu_momentary_dyntick_idle();
 	} while (curstate != MULTI_STOP_EXIT);
+
+	pr_info("multi_cpu_stop: return CPU#%u\n", smp_processor_id());
 
 	local_irq_restore(flags);
 	return err;
@@ -504,6 +509,8 @@ repeat:
 		struct cpu_stop_done *done = work->done;
 		int ret;
 
+		pr_info("stopper CPU#%u work()\n", smp_processor_id());
+
 		/* cpu stop callbacks must not sleep, make in_atomic() == T */
 		stopper->caller = work->caller;
 		stopper->fn = fn;
@@ -623,10 +630,15 @@ int stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
 	int ret;
 
+	pr_info("stop_machine: enter CPU#%u\n", smp_processor_id());
+
 	/* No CPUs can come up or down during this. */
 	cpus_read_lock();
 	ret = stop_machine_cpuslocked(fn, data, cpus);
 	cpus_read_unlock();
+
+	pr_info("stop_machine: return\n");
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(stop_machine);
