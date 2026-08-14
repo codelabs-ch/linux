@@ -71,4 +71,23 @@ void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free);
  */
 void muen_smp_trigger_event(const uint8_t id, const uint8_t cpu);
 
+
+
+// Internals: Move back to static once smp is in drivers/
+
+/* BSP AP start event array */
+extern uint8_t *bsp_ap_start;
+
+extern uint8_t muen_irq_work_evt;
+
+/* Per-CPU IPI event configuration */
+struct muen_ipi_config {
+	uint8_t *call_func;
+	uint8_t *reschedule;
+};
+extern DEFINE_PER_CPU(struct muen_ipi_config, muen_ipis);
+
+void muen_smp_setup_events(void);
+void muen_arch_verify_smp_events(unsigned int this_cpu, unsigned int cpu);
+
 #endif /* MUEN_SMP_H */

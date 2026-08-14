@@ -223,12 +223,11 @@ void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free)
 }
 EXPORT_SYMBOL(muen_smp_free_res_affinity);
 
-/*
- * Note that only single core Linux VMs are currently supported on
- * arm64 platforms. But in preparation for SMP, the same file and
- * design approach is used as for the x86/64 architecture.
- */
-static int __init muen_smp_init(void)
+void muen_arch_verify_smp_events(unsigned int this_cpu, unsigned int cpu)
+{
+}
+
+static int __init muen_pre_smp_init(void)
 {
 	muen_sinfo_log_resources();
 	muen_register_resources();

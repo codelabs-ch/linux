@@ -1,1 +1,1 @@
-obj-y += muen-clkevt.o
+obj-y += muen-clkevt.o muen-smp.o
