@@ -287,14 +287,35 @@ static int muen_set_affinity(struct irq_data *d,
 }
 
 /**
- * muen_ipi_send_mask - Send an IPI to CPUs in mask. Currently a no-op.
+ * muen_ipi_send_single - Send an IPI to a single CPU.
  */
-static void muen_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
+static void muen_ipi_send_single(struct irq_data *d, unsigned int cpu)
 {
-	if (likely(nr_cpu_ids == 1))
-		return;
+	pr_info("muen-irq: Send IPI (hwirq: %lu) to %u from CPU#%u", d->hwirq, cpu, smp_processor_id());
 
-	pr_err("%s: Unable to send IPI, no SMP support", muen_chip_data.chip.name);
+	// TODO: These could not be initialized yet
+
+	struct muen_ipi_config *const ipis = this_cpu_ptr(&muen_ipis);
+	pr_info("reschedule ev %d\n", this_cpu_ptr(&muen_ipis)->reschedule[cpu]);
+	pr_info("call_func  ev %d\n", this_cpu_ptr(&muen_ipis)->call_func[cpu]);
+	pr_info("irq_work   ev %d\n", muen_irq_work_evt);
+
+	// FUGLY!! IPI_* are private
+	switch(d->hwirq) {
+	case 0/* IPI_RESCHEDULE */:
+		kvm_hypercall0(ipis->reschedule[cpu]);
+		break;
+	case 1/* IPI_CALL_FUNC */:
+		kvm_hypercall0(ipis->call_func[cpu]);
+		break;
+	case 5/* IPI_IRQ_WORK */:
+		pr_err("muen-irq: irq_work IPI not implemented\n");
+		kvm_hypercall0(muen_irq_work_evt);
+		break;
+	default:
+		pr_warn_once("muen-irq: Requested unsupported IPI %lu\n", d->hwirq);
+		return;
+	}
 }
 
 /**
@@ -307,7 +328,7 @@ static const struct irq_chip muen_irq_chip = {
 	.irq_ack          = muen_ack,
 	.irq_eoi          = muen_eoi,
 	.irq_set_affinity = muen_set_affinity,
-	.ipi_send_mask    = muen_ipi_send_mask,
+	.ipi_send_single  = muen_ipi_send_single,
 	.flags            = IRQCHIP_SKIP_SET_WAKE,
 };
 
