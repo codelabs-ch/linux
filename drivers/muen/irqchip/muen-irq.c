@@ -320,7 +320,7 @@ static const struct irq_domain_ops muen_irq_domain_ops = {
  * enumerated by /proc/interrupts and would cause NULL-pointer dereferences
  * otherwise.
  */
-static __init void muen_smp_init(void)
+static __init void muen_irq_smp_init(void)
 {
 	int i, virq, base_sgi;
 
@@ -391,7 +391,7 @@ static int __init muen_chip_init(struct device_node *node, struct device_node *p
 		muen_chip_data.chip.name, node->full_name,
 		muen_chip_data.physical_address, nr_irqs);
 
-	muen_smp_init();
+	muen_irq_smp_init();
 
 	set_handle_irq(muen_handle_irq);
 
