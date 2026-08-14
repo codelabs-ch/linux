@@ -27,8 +27,8 @@
  * acknowledges and drops the priority in the exception irq entry function to
  * be able to let the Linux kernel handle all interrupts as edge-triggerd, even
  * though most hardware interrupts are defined as level-sensitive by the actual
- * ARM and SoC specification. This also allows the driver to let the ack, mask
- * and unmask function implementations empty.
+ * ARM and SoC specification. This also allows the driver to leave the ack,
+ * mask and unmask function implementations empty.
  */
 
 #include <linux/irq.h>
