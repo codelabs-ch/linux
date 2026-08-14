@@ -291,16 +291,16 @@ static int muen_set_affinity(struct irq_data *d,
  */
 static void muen_ipi_send_single(struct irq_data *d, unsigned int cpu)
 {
-	pr_info("muen-irq: Send IPI (hwirq: %lu) to %u from CPU#%u", d->hwirq, cpu, smp_processor_id());
-
-	// TODO: These could not be initialized yet
+	pr_info("muen-irq: Send IPI (hwirq: %lu) from CPU#%u to %u\n", d->hwirq, smp_processor_id(), cpu);
 
 	struct muen_ipi_config *const ipis = this_cpu_ptr(&muen_ipis);
-	pr_info("reschedule ev %d\n", this_cpu_ptr(&muen_ipis)->reschedule[cpu]);
-	pr_info("call_func  ev %d\n", this_cpu_ptr(&muen_ipis)->call_func[cpu]);
-	pr_info("irq_work   ev %d\n", muen_irq_work_evt);
+	pr_info("  events: reschedule %d  call_func%d  irq_work %d\n",
+		this_cpu_ptr(&muen_ipis)->reschedule[cpu],
+		this_cpu_ptr(&muen_ipis)->call_func[cpu],
+		muen_irq_work_evt);
 
-	// FUGLY!! IPI_* are private
+	// FUGLY! IPI_* are private. TODO: Search sinfo for event
+	// with 0-15 SGI vector number during init instead?
 	switch(d->hwirq) {
 	case 0/* IPI_RESCHEDULE */:
 		kvm_hypercall0(ipis->reschedule[cpu]);

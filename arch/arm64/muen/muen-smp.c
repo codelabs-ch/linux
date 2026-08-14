@@ -18,6 +18,7 @@
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
+#include <linux/cpuhotplug.h>
 
 #include <muen/smp.h>
 #include <muen/timer.h>
@@ -227,8 +228,53 @@ void muen_arch_verify_smp_events(unsigned int this_cpu, unsigned int cpu)
 {
 }
 
+static int muen_prepare_cpu(unsigned int cpu)
+{
+	pr_info("muen-smp: Prepare CPU#%u", cpu);
+
+	// Need to setup sinfo in PREPARE due to sleepy memremap calls
+	muen_sinfo_setup(cpu);
+
+	if (IS_ENABLED(CONFIG_MUEN_CLKSRC)) {
+		muen_setup_timer_page(cpu);
+	}
+
+	return 0;
+}
+
+static int muen_starting_cpu(unsigned int cpu)
+{
+	pr_info("muen-smp: Starting CPU#%u", cpu);
+
+	BUG_ON(!muen_check_magic());
+	muen_sinfo_log_resources();
+
+	// muen_register_resources();
+	//^ TODO: Not valid in STARTING due to sleeping mutex in irq_create_mapping
+	//^ before muen_register_clkevent_dev due to request_irq dependency
+
+	if (IS_ENABLED(CONFIG_MUEN_CLKSRC)) {
+		muen_setup_timer_event();
+		// muen_register_clockevent_dev();
+		//^ Not valid in STARTING due to sleeping alloc call in request_irq
+	}
+
+	muen_smp_setup_events();
+
+	return 0;
+}
+
+static int muen_online_cpu(unsigned int cpu)
+{
+	pr_info("muen-smp: Online CPU#%u", cpu);
+
+	return 0;
+}
+
 static int __init muen_pre_smp_init(void)
 {
+	int ret;
+
 	muen_sinfo_log_resources();
 	muen_register_resources();
 
@@ -237,6 +283,23 @@ static int __init muen_pre_smp_init(void)
 		muen_setup_timer_event();
 		muen_register_clockevent_dev();
 	}
+
+	ret = cpuhp_setup_state_nocalls(CPUHP_BP_PREPARE_DYN,
+					"smp/muen:prepare",
+					muen_prepare_cpu,
+					NULL);
+	BUG_ON(ret < 0);
+
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_GIC_STARTING,
+				"smp/muen:starting",
+				muen_starting_cpu, NULL);
+	BUG_ON(ret < 0);
+
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+				"smp/muen:online",
+				muen_online_cpu, NULL);
+	BUG_ON(ret < 0);
+
 
 	return 0;
 }
