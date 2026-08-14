@@ -240,4 +240,7 @@ static int __init muen_pre_smp_init(void)
 
 	return 0;
 }
-core_initcall(muen_smp_init);
+early_initcall(muen_pre_smp_init);
+/* just before smp_init(),
+   but after (arch_)smp_prepare_cpus
+*/
