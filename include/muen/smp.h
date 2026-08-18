@@ -89,5 +89,7 @@ extern DEFINE_PER_CPU(struct muen_ipi_config, muen_ipis);
 
 void muen_smp_setup_events(void);
 void muen_arch_verify_smp_events(unsigned int this_cpu, unsigned int cpu);
+void muen_register_resources(void);
+void muen_arch_allocate_vector(const struct muen_resource_type *const res);
 
 #endif /* MUEN_SMP_H */
