@@ -322,7 +322,7 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 	muen_smp_setup_events();
 }
 
-void __init muen_smp_reserve_real_mode(void)
+static void __init muen_smp_reserve_real_mode(void)
 {
 	const phys_addr_t addr = 0x20000;
 	phys_addr_t mem;
@@ -351,14 +351,14 @@ void __init muen_smp_reserve_real_mode(void)
 	memblock_reserve(0, SZ_1M);
 }
 
-void muen_smp_send_call_function_single_ipi(int cpu)
+static void muen_smp_send_call_function_single_ipi(int cpu)
 {
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
 
 	kvm_hypercall0(cfg->call_func[cpu]);
 }
 
-void muen_smp_send_call_function_ipi(const struct cpumask *mask)
+static void muen_smp_send_call_function_ipi(const struct cpumask *mask)
 {
 	unsigned int cpu;
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
@@ -367,7 +367,7 @@ void muen_smp_send_call_function_ipi(const struct cpumask *mask)
 		kvm_hypercall0(cfg->call_func[cpu]);
 }
 
-void muen_smp_send_reschedule(int cpu)
+static void muen_smp_send_reschedule(int cpu)
 {
 	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
 
