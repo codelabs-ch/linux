@@ -34,21 +34,11 @@
 #include <muen/timer.h>
 
 
-static const char *const res_names[] = {
+static const char *const res_names[] = { // DUP
 	"none", "memory", "event", "vector", "device",
 };
 
-/* BSP AP start event array */
-static uint8_t *bsp_ap_start;
-
-/* Per-CPU IPI event configuration */
-struct muen_ipi_config {
-	uint8_t *call_func;
-	uint8_t *reschedule;
-};
-static DEFINE_PER_CPU(struct muen_ipi_config, muen_ipis);
-
-static unsigned int muen_get_evt_vec(const char *const name,
+static unsigned int muen_get_evt_vec(const char *const name, // DUP
 				     const enum muen_resource_kind kind)
 {
 	const struct muen_resource_type *const
@@ -74,7 +64,7 @@ static void muen_verify_vec(const char *const name, const unsigned int ref)
 	}
 }
 
-static void new_name(struct muen_name_type *const n, const char *str, ...)
+static void new_name(struct muen_name_type *const n, const char *str, ...) // DUP
 {
 	va_list ap;
 
@@ -85,54 +75,16 @@ static void new_name(struct muen_name_type *const n, const char *str, ...)
 	va_end(ap);
 }
 
-static void muen_setup_events(void)
+void muen_arch_verify_smp_events(unsigned int this_cpu, unsigned int cpu)
 {
-	unsigned int cpu, vec;
 	struct muen_name_type n;
-	const unsigned int this_cpu = smp_processor_id();
 
-	struct muen_ipi_config *const cfg = this_cpu_ptr(&muen_ipis);
-
-	cfg->call_func = kcalloc(nr_cpu_ids, sizeof(uint8_t), GFP_ATOMIC);
-	BUG_ON(!cfg->call_func);
-	cfg->reschedule = kcalloc(nr_cpu_ids, sizeof(uint8_t), GFP_ATOMIC);
-	BUG_ON(!cfg->reschedule);
-
-	for_each_cpu(cpu, cpu_possible_mask) {
-		if (this_cpu == cpu)
-			continue;
-
-		pr_info("muen-smp: Setup CPU#%u -> CPU#%u events/vectors\n",
-			this_cpu, cpu);
-
-		if (!this_cpu) {
-			new_name(&n, "smp_signal_sm_%02d", cpu);
-			bsp_ap_start[cpu - 1] = muen_get_evt_vec
-				(n.data, MUEN_RES_EVENT);
-			pr_info("muen-smp: event %s with number %u\n", n.data,
-				bsp_ap_start[cpu - 1]);
-		}
-
-		new_name(&n, "smp_ipi_call_func_%02d%02d", this_cpu, cpu);
-		cfg->call_func[cpu] = muen_get_evt_vec(n.data, MUEN_RES_EVENT);
-		pr_info("muen-smp: event %s with number %u\n", n.data,
-			cfg->call_func[cpu]);
-
-		new_name(&n, "smp_ipi_reschedule_%02d%02d", this_cpu, cpu);
-		cfg->reschedule[cpu] = muen_get_evt_vec(n.data, MUEN_RES_EVENT);
-		pr_info("muen-smp: event %s with number %u\n", n.data,
-			cfg->reschedule[cpu]);
-
-		/* Verify target vector assignment */
-
-		new_name(&n, "timer");
-		muen_verify_vec(n.data, LOCAL_TIMER_VECTOR);
-		new_name(&n, "smp_ipi_reschedule_%02d%02d", cpu, this_cpu);
-		muen_verify_vec(n.data, RESCHEDULE_VECTOR);
-		new_name(&n, "smp_ipi_call_func_%02d%02d", cpu, this_cpu);
-		muen_verify_vec(n.data, CALL_FUNCTION_SINGLE_VECTOR);
-		vec = muen_get_evt_vec(n.data, MUEN_RES_VECTOR);
-	}
+	new_name(&n, "timer");
+	muen_verify_vec(n.data, LOCAL_TIMER_VECTOR);
+	new_name(&n, "smp_ipi_reschedule_%02d%02d", cpu, this_cpu);
+	muen_verify_vec(n.data, RESCHEDULE_VECTOR);
+	new_name(&n, "smp_ipi_call_func_%02d%02d", cpu, this_cpu);
+	muen_verify_vec(n.data, CALL_FUNCTION_SINGLE_VECTOR);
 }
 
 /* CPU resource affinity handling */
@@ -291,7 +243,7 @@ static void notrace start_secondary(void *unused)
 	x86_cpuinit.setup_percpu_clockev();
 
 	wmb();
-	muen_setup_events();
+	muen_smp_setup_events();
 	muen_setup_timer_event();
 	muen_register_clockevent_dev();
 	muen_register_resources();
@@ -421,7 +373,7 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 			       GFP_KERNEL);
 	BUG_ON(!bsp_ap_start);
 
-	muen_setup_events();
+	muen_smp_setup_events();
 }
 
 void __init muen_smp_reserve_real_mode(void)
