@@ -36,6 +36,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/types.h>
+#include <linux/cpuhotplug.h>
 
 #include <asm/exception.h>
 
@@ -357,6 +358,17 @@ unsigned long muen_component_address(struct device_node *node, int resource_inde
 	return address_res.start;
 }
 
+int muen_irq_cpu_starting(unsigned int cpu)
+{
+	/* Note: GIC CPU interface registers are banked per-cpu */
+	// TODO: Use arm-gic.h: GIC_CPU_CTRL, GIC_CPU_PRIMASK, GIC_CPU_BINPOINT
+	writel_relaxed(IRQ_DEFAULT_CONTROL, muen_chip_data.raw_address + IRQ_CONTROL_OFFSET);
+	writel_relaxed(IRQ_DEFAULT_PRIORITY, muen_chip_data.raw_address + IRQ_PRIORITY_MASK_OFFSET);
+	writel_relaxed(IRQ_DEFAULT_BINARY_POINT, muen_chip_data.raw_address + IRQ_BINARY_POINT_OFFSET);
+
+	return 0;
+}
+
 /**
  * muen_chip_init - Called by the Linux kernel init process. The
  * Muen SK irq chip driver currently only supports a static
@@ -397,9 +409,9 @@ static int __init muen_chip_init(struct device_node *node, struct device_node *p
 
 	irq_set_default_host(muen_chip_data.domain);
 
-	writel_relaxed(IRQ_DEFAULT_CONTROL, muen_chip_data.raw_address + IRQ_CONTROL_OFFSET);
-	writel_relaxed(IRQ_DEFAULT_PRIORITY, muen_chip_data.raw_address + IRQ_PRIORITY_MASK_OFFSET);
-	writel_relaxed(IRQ_DEFAULT_BINARY_POINT, muen_chip_data.raw_address + IRQ_BINARY_POINT_OFFSET);
+	cpuhp_setup_state(CPUHP_AP_IRQ_GIC_STARTING, // TODO: stolen from ARM GIC irq-gic.c
+			  "irqchip/muen:starting",
+			  muen_irq_cpu_starting, NULL);
 
 	muen_chip_data.initialized = true;
 
