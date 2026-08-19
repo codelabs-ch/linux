@@ -130,8 +130,10 @@ void muen_smp_setup_events(void)
 	unsigned int cpu;
 	struct muen_name_type n;
 	const unsigned int this_cpu = smp_processor_id();
-
 	struct muen_ipi_config *const ipis = this_cpu_ptr(&muen_ipis);
+
+	if (ipis->call_func)
+		pr_err("muen-smp: WARN: Events already setup!\n");
 
 	ipis->call_func = kcalloc(nr_cpu_ids, sizeof(uint8_t), GFP_ATOMIC);
 	BUG_ON(!ipis->call_func);

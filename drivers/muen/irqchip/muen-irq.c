@@ -40,6 +40,8 @@
 
 #include <asm/exception.h>
 
+#include <muen/smp.h>
+
 /*
  * Definitions
  */
@@ -93,6 +95,8 @@ struct muen_irqchip_data {
 };
 
 static struct muen_irqchip_data muen_chip_data;
+
+static uint8_t muen_irq_work_evt;
 
 /**
  * muen_irq_domain_map - Maps an interrupt based on its hardware
@@ -281,20 +285,56 @@ static void __exception_irq_entry muen_handle_irq(struct pt_regs *regs)
 static int muen_set_affinity(struct irq_data *d,
 			       const struct cpumask *mask_val, bool force)
 {
-	pr_err("%s: Unable to set CPU affinity, no SMP support", muen_chip_data.chip.name);
-	return IRQ_SET_MASK_OK_DONE;
+	pr_err("%s: IRQ affinity unimplemented", muen_chip_data.chip.name);
+	return -EINVAL;
 }
 
+#ifdef CONFIG_MUEN_SMP
 /**
- * muen_ipi_send_mask - Send an IPI to CPUs in mask. Currently a no-op.
+ * muen_ipi_send_single - Send an IPI to a single CPU.
  */
-static void muen_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
+static void muen_ipi_send_single(struct irq_data *d, unsigned int cpu)
 {
-	if (likely(nr_cpu_ids == 1))
-		return;
+	WARN_ON_ONCE(!in_atomic());
 
-	pr_err("%s: Unable to send IPI, no SMP support", muen_chip_data.chip.name);
+	struct muen_ipi_config *const ipis = this_cpu_ptr(&muen_ipis);
+
+	pr_debug("muen-irq: Send IPI (hwirq: %lu) from CPU#%u to %u\n", d->hwirq, smp_processor_id(), cpu);
+
+	// Can come before smp's early_initcall, so don't BUG on !ipis
+	if (d->hwirq == 5/* IPI_IRQ_WORK */) {
+		pr_debug("  reschedule %d", muen_irq_work_evt);
+		kvm_hypercall0(muen_irq_work_evt);
+		return;
+	}
+
+	// Ugly cross module dependency init, at least make it obvious if
+	// it breaks. Init happens in muen-smp.
+	if (WARN_ON_ONCE(!ipis->reschedule || !ipis->call_func))
+		return;
+	pr_debug("  call_func %d  irq_work %d\n",
+		ipis->reschedule[cpu],
+		ipis->call_func[cpu]);
+
+	// Note [Hardcoded IPI numbers in muen]: Unfortunately IPI_* are
+	// private in arch/arm64/smp.c. Numbers are hardcoded in
+	// mucfgexpand too so not really that much worse here.
+	switch (d->hwirq) {
+	case 0/* IPI_RESCHEDULE */:
+		kvm_hypercall0(ipis->reschedule[cpu]);
+		break;
+	case 1/* IPI_CALL_FUNC */:
+		kvm_hypercall0(ipis->call_func[cpu]);
+		break;
+	default:
+		pr_warn_once("muen-irq: Requested unsupported IPI %lu\n", d->hwirq);
+		return;
+	}
 }
+#else
+#define muen_set_affinity	NULL
+#define muen_ipi_send_single	NULL
+#endif
 
 /**
  * Configuration objects
@@ -306,7 +346,7 @@ static const struct irq_chip muen_irq_chip = {
 	.irq_ack          = muen_ack,
 	.irq_eoi          = muen_eoi,
 	.irq_set_affinity = muen_set_affinity,
-	.ipi_send_mask    = muen_ipi_send_mask,
+	.ipi_send_single  = muen_ipi_send_single,
 	.flags            = IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -358,13 +398,32 @@ unsigned long muen_component_address(struct device_node *node, int resource_inde
 	return address_res.start;
 }
 
-int muen_irq_cpu_starting(unsigned int cpu)
+static void muen_irq_init_work_evt(unsigned int this_cpu)
 {
+	const struct muen_resource_type *const
+		event = muen_get_resource("work", MUEN_RES_EVENT);
+	BUG_ON(!event); /* Need it, arm64 harcodes arch_irq_work_has_interrupt() = true */
+
+	if (this_cpu == 0)
+		muen_irq_work_evt = event->data.number;
+	if (this_cpu != 0)
+		BUG_ON(muen_irq_work_evt != event->data.number);
+	pr_info("%s: Using irq_work event %u on CPU#%u",
+		muen_chip_data.chip.name, muen_irq_work_evt, smp_processor_id());
+}
+
+int muen_irq_cpu_starting(unsigned int this_cpu)
+{
+	muen_irq_init_work_evt(this_cpu);
+
+	pr_info("%s: Enable GIC CPU#%u interface", muen_chip_data.chip.name, this_cpu);
+
 	/* Note: GIC CPU interface registers are banked per-cpu */
-	// TODO: Use arm-gic.h: GIC_CPU_CTRL, GIC_CPU_PRIMASK, GIC_CPU_BINPOINT
 	writel_relaxed(IRQ_DEFAULT_CONTROL, muen_chip_data.raw_address + IRQ_CONTROL_OFFSET);
 	writel_relaxed(IRQ_DEFAULT_PRIORITY, muen_chip_data.raw_address + IRQ_PRIORITY_MASK_OFFSET);
 	writel_relaxed(IRQ_DEFAULT_BINARY_POINT, muen_chip_data.raw_address + IRQ_BINARY_POINT_OFFSET);
+
+	// TODO: Use arm-gic.h: GIC_CPU_CTRL, GIC_CPU_PRIMASK, GIC_CPU_BINPOINT
 
 	return 0;
 }
