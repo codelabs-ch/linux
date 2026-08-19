@@ -46,6 +46,15 @@ EXPORT_SYMBOL(kvm_hypercall0);
 
 void muen_arch_verify_smp_events(unsigned int this_cpu, unsigned int cpu)
 {
+#if 0 // See Note [Hardcoded IPI numbers in muen]
+	struct muen_name_type n;
+	muen_new_name(&n, "timer_bcast");
+	muen_smp_verify_vec(n.data, IPI_TIMER);
+	muen_new_name(&n, "smp_ipi_reschedule_%02d%02d", cpu, this_cpu);
+	muen_smp_verify_vec(n.data, IPI_RESCHEDULE);
+	muen_new_name(&n, "smp_ipi_call_func_%02d%02d", cpu, this_cpu);
+	muen_smp_verify_vec(n.data, IPI_CALL_FUNC);
+#endif
 }
 
 static int muen_smp_prepare_cpu(unsigned int cpu)

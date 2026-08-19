@@ -222,6 +222,13 @@ int muen_sinfo_setup(unsigned int cpu);
  */
 void muen_sinfo_log_resources(void);
 
+
+/*
+ * Create new name based on format string.
+ */
+void muen_new_name(struct muen_name_type *const n, const char *str, ...);
+
+
 /*
  * Return true if both names are equal.
  */

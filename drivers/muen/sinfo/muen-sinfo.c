@@ -188,6 +188,17 @@ bool muen_names_equal(const struct muen_name_type *const n1,
 }
 EXPORT_SYMBOL(muen_names_equal);
 
+void muen_new_name(struct muen_name_type *const n, const char *str, ...)
+{
+	va_list ap;
+
+	memset(n->data, 0, sizeof(n->data));
+
+	va_start(ap, str);
+	vsnprintf(n->data, sizeof(n->data), str, ap);
+	va_end(ap);
+}
+
 bool muen_check_magic(void)
 {
 	const struct subject_info_type * const sinfo =

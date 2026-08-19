@@ -33,58 +33,16 @@
 #include <muen/smp.h>
 #include <muen/timer.h>
 
-
-static const char *const res_names[] = { // DUP
-	"none", "memory", "event", "vector", "device",
-};
-
-static unsigned int muen_get_evt_vec(const char *const name, // DUP
-				     const enum muen_resource_kind kind)
-{
-	const struct muen_resource_type *const
-	   res = muen_get_resource(name, kind);
-
-	if (!res) {
-		pr_err("muen-smp: Required %s with name %s not present\n",
-		       res_names[kind], name);
-		BUG();
-	}
-
-	return res->data.number;
-}
-
-static void muen_verify_vec(const char *const name, const unsigned int ref)
-{
-	const unsigned int vec = muen_get_evt_vec(name, MUEN_RES_VECTOR);
-
-	if (vec != ref) {
-		pr_err("muen-smp: Unexpected vector %u for %s, should be %u\n",
-		       vec, name, ref);
-		BUG();
-	}
-}
-
-static void new_name(struct muen_name_type *const n, const char *str, ...) // DUP
-{
-	va_list ap;
-
-	memset(n->data, 0, sizeof(n->data));
-
-	va_start(ap, str);
-	vsnprintf(n->data, sizeof(n->data), str, ap);
-	va_end(ap);
-}
-
 void muen_arch_verify_smp_events(unsigned int this_cpu, unsigned int cpu)
 {
 	struct muen_name_type n;
 
-	new_name(&n, "timer");
-	muen_verify_vec(n.data, LOCAL_TIMER_VECTOR);
-	new_name(&n, "smp_ipi_reschedule_%02d%02d", cpu, this_cpu);
-	muen_verify_vec(n.data, RESCHEDULE_VECTOR);
-	new_name(&n, "smp_ipi_call_func_%02d%02d", cpu, this_cpu);
-	muen_verify_vec(n.data, CALL_FUNCTION_SINGLE_VECTOR);
+	muen_new_name(&n, "timer");
+	muen_smp_verify_vec(n.data, LOCAL_TIMER_VECTOR);
+	muen_new_name(&n, "smp_ipi_reschedule_%02d%02d", cpu, this_cpu);
+	muen_smp_verify_vec(n.data, RESCHEDULE_VECTOR);
+	muen_new_name(&n, "smp_ipi_call_func_%02d%02d", cpu, this_cpu);
+	muen_smp_verify_vec(n.data, CALL_FUNCTION_SINGLE_VECTOR);
 }
 
 /*
@@ -306,8 +264,8 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 
 	/* In the non-SMP case, verify timer vector only */
 	if (nr_cpu_ids == 1) {
-		new_name(&n, "timer");
-		muen_verify_vec(n.data, LOCAL_TIMER_VECTOR);
+		muen_new_name(&n, "timer");
+		muen_smp_verify_vec(n.data, LOCAL_TIMER_VECTOR);
 		return;
 	}
 

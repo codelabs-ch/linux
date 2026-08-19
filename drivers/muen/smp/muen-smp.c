@@ -25,6 +25,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/memblock.h>
 
+#include <muen/sinfo.h>
 #include <muen/smp.h>
 #include <muen/timer.h>
 
@@ -37,19 +38,9 @@ uint8_t *bsp_ap_start; // x86 only
 
 DEFINE_PER_CPU(struct muen_ipi_config, muen_ipis);
 
-static void new_name(struct muen_name_type *const n, const char *str, ...)
-{
-	va_list ap;
-
-	memset(n->data, 0, sizeof(n->data));
-
-	va_start(ap, str);
-	vsnprintf(n->data, sizeof(n->data), str, ap);
-	va_end(ap);
-}
-
-static unsigned int muen_get_evt_vec(const char *const name,
-				     const enum muen_resource_kind kind)
+unsigned int muen_smp_get_evt_vec(
+	const char *const name,
+	const enum muen_resource_kind kind)
 {
 	const struct muen_resource_type *const
 	   res = muen_get_resource(name, kind);
@@ -61,6 +52,17 @@ static unsigned int muen_get_evt_vec(const char *const name,
 	}
 
 	return res->data.number;
+}
+
+void muen_smp_verify_vec(const char *const name, const unsigned int ref)
+{
+	const unsigned int vec = muen_smp_get_evt_vec(name, MUEN_RES_VECTOR);
+
+	if (vec != ref) {
+		pr_err("muen-smp: Unexpected vector %u for %s, should be %u\n",
+		       vec, name, ref);
+		BUG();
+	}
 }
 
 static void do_trigger_event(void *data)
@@ -149,21 +151,21 @@ void muen_smp_setup_events(void)
 
 #ifdef CONFIG_X86
 		if (!this_cpu) {
-			new_name(&n, "smp_signal_sm_%02d", cpu); // No SM on ARM64.
-			bsp_ap_start[cpu - 1] = muen_get_evt_vec
+			muen_new_name(&n, "smp_signal_sm_%02d", cpu); // No SM on ARM64.
+			bsp_ap_start[cpu - 1] = muen_smp_get_evt_vec
 				(n.data, MUEN_RES_EVENT);
 			pr_info("muen-smp: event %s with number %u\n", n.data,
 				bsp_ap_start[cpu - 1]);
 		}
 #endif
 
-		new_name(&n, "smp_ipi_call_func_%02d%02d", this_cpu, cpu);
-		ipis->call_func[cpu] = muen_get_evt_vec(n.data, MUEN_RES_EVENT);
+		muen_new_name(&n, "smp_ipi_call_func_%02d%02d", this_cpu, cpu);
+		ipis->call_func[cpu] = muen_smp_get_evt_vec(n.data, MUEN_RES_EVENT);
 		pr_info("muen-smp: event %s with number %u\n", n.data,
 			ipis->call_func[cpu]);
 
-		new_name(&n, "smp_ipi_reschedule_%02d%02d", this_cpu, cpu);
-		ipis->reschedule[cpu] = muen_get_evt_vec(n.data, MUEN_RES_EVENT);
+		muen_new_name(&n, "smp_ipi_reschedule_%02d%02d", this_cpu, cpu);
+		ipis->reschedule[cpu] = muen_smp_get_evt_vec(n.data, MUEN_RES_EVENT);
 		pr_info("muen-smp: event %s with number %u\n", n.data,
 			ipis->reschedule[cpu]);
 
