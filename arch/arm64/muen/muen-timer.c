@@ -47,11 +47,16 @@ int muen_arch_register_local_timer_interrupt(
 	evt->irq = virq;
 	evt->cpumask = cpumask_of(cpu);
 
-	int err = request_irq(virq, muen_timer_handler, IRQF_TIMER,
-			      "muen-clkevt", evt);
-	WARN(err, "muen-clkevt: Failed to register IRQ %d (%d) on CPU#%u\n", virq, err, cpu);
-	if (err)
-		return -1;
+	if (cpu == 0) {
+		int err = request_percpu_irq(virq, muen_timer_handler,
+					     "muen-clkevt", evt);
+		WARN(err, "muen-clkevt: Failed to register IRQ %d (%d) on CPU#%u\n",
+		     virq, err, cpu);
+		if (err)
+			return -1;
+	}
+
+	enable_percpu_irq(virq, IRQ_TYPE_NONE);
 
 	pr_info("muen-clkevt: Using timer (event '%s') hwirq %u, virq %u on CPU#%u\n",
 		evt->name, hwirq, virq, cpu);
