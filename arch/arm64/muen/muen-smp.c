@@ -27,28 +27,11 @@
  */
 void muen_arch_allocate_vector(const struct muen_resource_type *const res)
 {
-	const int this_cpu = smp_processor_id();
 	const unsigned int hwirq = res->data.number;
-
-	/*
-	 * Note that currently only shared perpheral interrupts (SPI) on an
-	 * ARM Gerneric Interrupt Controller GIC-400 (virtual CPU interface)
-	 * are supported on arm64 platforms.
-	 */
-	if (hwirq < 32) {
-		pr_err("muen-smp: Only shared peripheral interrupts (SPI) are supported, requested hwirq %u can not be mapped\n", hwirq);
-		BUG();
-	}
-
-	struct irq_domain *domain;
-
-	domain = irq_get_default_host();
-
-	int virq = irq_create_mapping(domain, hwirq);
+	int virq = irq_create_mapping(NULL/*=default_domain*/, hwirq);
 
 	pr_info("muen-smp: Allocate irq with hwirq %u, virq %u for event %s (CPU#%d)\n",
-				hwirq, virq, res->name.data, this_cpu);
-
+				hwirq, virq, res->name.data, smp_processor_id());
 }
 
 inline void kvm_hypercall0(unsigned int num)
