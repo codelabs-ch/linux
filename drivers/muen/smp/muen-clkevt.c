@@ -64,14 +64,18 @@ static DEFINE_PER_CPU(struct clock_event_device, muen_events);
 void muen_setup_timer_page(unsigned int cpu)
 {
 	struct subject_timed_event_type *timer_page;
-	char mem_name[MAX_NAME_LENGTH + 1] = "timed_event";
+	char mem_name[MAX_NAME_LENGTH + 1];
 	const struct muen_resource_type *region;
 	uint64_t addr;
 
-	if (nr_cpu_ids > 1)
-		snprintf(mem_name, sizeof(mem_name), "timed_event%d", 0);
-
+	snprintf(mem_name, sizeof(mem_name), "timed_event%d", 0);
 	region = muen_get_resource(mem_name, MUEN_RES_MEMORY);
+
+	/* Fall back to non-SMP unnumbered event name for BSP */
+	if (!region && cpu == 0) {
+		strcpy(mem_name, "timed_event");
+		region = muen_get_resource(mem_name, MUEN_RES_MEMORY);
+	}
 	BUG_ON(!region);
 	BUG_ON(region->data.mem.size != PAGE_SIZE);
 
