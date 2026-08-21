@@ -36,20 +36,33 @@ static DEFINE_PER_CPU(char [MAX_NAME_LENGTH + 1], subject_name);
 static DEFINE_PER_CPU(bool, subject_name_unset) = true;
 
 static unsigned long long sinfo_addr;
-static int __init setup_sinfo_addr(char *arg)
+static DEFINE_PER_CPU(const struct subject_info_type *, subject_info);
+static DEFINE_PER_CPU(const struct muen_scheduling_info_type *, scheduling_info);
+
+static int sinfo_addr_set(const char *val, const struct kernel_param *kp)
 {
-	if (kstrtoull(arg, 16, &sinfo_addr))
-		return -EINVAL;
+	if (sinfo_addr)
+		return -EBUSY;
+
+	int ret = kstrtoull(val, 16, &sinfo_addr);
+	if (ret)
+		return ret;
 
 	muen_sinfo_early_init();
+
+	const struct subject_info_type * const sinfo =
+		this_cpu_read(subject_info);
 
 	return 0;
 }
 
-early_param("muen_sinfo", setup_sinfo_addr);
+static const struct kernel_param_ops sinfo_addr_ops = {
+    .set = sinfo_addr_set,
+};
 
-static DEFINE_PER_CPU(const struct subject_info_type *, subject_info);
-static DEFINE_PER_CPU(const struct muen_scheduling_info_type *, scheduling_info);
+#undef MODULE_PARAM_PREFIX
+#define MODULE_PARAM_PREFIX ""
+module_param_cb(muen_sinfo, &sinfo_addr_ops, NULL, 0); // after setup_per_cpu_areas()
 
 uint8_t no_hash[HASH_LENGTH] = {0};
 
@@ -324,7 +337,7 @@ void __init muen_sinfo_early_init(void)
 	muen_sinfo_early_init_base(base_addr);
 }
 
-static int __init muen_sinfo_init(void)
+static int muen_sinfo_init(void)
 {
 	int ret;
 	void *early_sinfo = (void *)this_cpu_read(subject_info);
