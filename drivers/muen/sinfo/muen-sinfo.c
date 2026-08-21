@@ -93,7 +93,7 @@ static bool iterate_resources(struct iterator *const iter)
 	const struct subject_info_type * const sinfo =
 		this_cpu_read(subject_info);
 
-	if (!muen_check_magic())
+	if (WARN_ON_ONCE(!muen_check_magic()))
 		return false;
 
 	if (!iter->res) {
@@ -214,7 +214,7 @@ const char *const muen_get_subject_name(void)
 		this_cpu_read(subject_info);
 	char *name = per_cpu(subject_name, smp_processor_id());
 
-	if (!muen_check_magic())
+	if (WARN_ON_ONCE(!muen_check_magic()))
 		return NULL;
 
 	if (this_cpu_read(subject_name_unset)) {
@@ -267,7 +267,7 @@ EXPORT_SYMBOL(muen_for_each_resource);
 
 uint64_t muen_get_tsc_khz(void)
 {
-	if (!muen_check_magic())
+	if (WARN_ON_ONCE(!muen_check_magic()))
 		return 0;
 
 	return this_cpu_read(subject_info)->tsc_khz;
@@ -279,7 +279,7 @@ inline uint64_t muen_get_sched_start(void)
 	const struct muen_scheduling_info_type * const sched_info =
 		this_cpu_read(scheduling_info);
 
-	if (!muen_check_magic())
+	if (WARN_ON_ONCE(!muen_check_magic()))
 		return 0;
 
 	return sched_info->tsc_schedule_start;
@@ -291,7 +291,7 @@ inline uint64_t muen_get_sched_end(void)
 	const struct muen_scheduling_info_type * const sched_info =
 		this_cpu_read(scheduling_info);
 
-	if (!muen_check_magic())
+	if (WARN_ON_ONCE(!muen_check_magic()))
 		return 0;
 
 	return sched_info->tsc_schedule_end;
