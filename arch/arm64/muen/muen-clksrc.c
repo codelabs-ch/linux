@@ -23,18 +23,31 @@
 static DEFINE_PER_CPU_ALIGNED(uint64_t, current_end);
 static DEFINE_PER_CPU_ALIGNED(uint64_t, counter);
 
+static atomic64_t global_last_end = ATOMIC64_INIT(0);
+
+/*
+ * Timekeeping is a global singleton and has a hard requirement on
+ * clocksources being monotonic across all CPUs (unlike sched_clock).
+ *
+ * Since sched_info is per-cpu and frame end time can vary depending on
+ * scheduling plan we have to fix this here the hard way.
+ *
+ * Alternative: validate scheduling plans to prevent Linux sibling cores
+ * from running in different timeslices.
+ *
+ * Alternative2: Peek into BSP sinfo directly and use it's sense of time.
+ */
 static u64 muen_cs_read(struct clocksource *arg)
 {
-	const uint64_t next_end = muen_get_sched_end();
+	u64 now, global;
 
-	if (next_end == this_cpu_read(current_end))
-		this_cpu_inc(counter);
-	else {
-		this_cpu_write(counter, next_end);
-		this_cpu_write(current_end, next_end);
-	}
+	now = muen_get_sched_end();
+	global = atomic64_read(&global_last_end);
 
-	return this_cpu_read(counter);
+	if (now > global) // needs update
+		while (global < now && !atomic64_try_cmpxchg(&global_last_end, &global, now));
+
+	return atomic64_read(&global_last_end);
 }
 
 /*
@@ -53,9 +66,19 @@ static struct clocksource muen_cs = {
 	.vdso_clock_mode	= VDSO_CLOCKMODE_NONE
 };
 
-inline u64 muen_clock_read(void)
+/* Note: Sched clock is allowed to skew per-cpu, unlike global clocksource. */
+inline u64 muen_clock_read(void) // _sched_clock_read
 {
-	return muen_cs_read(&muen_cs);
+	const uint64_t next_end = muen_get_sched_end();
+
+	if (next_end == this_cpu_read(current_end))
+		this_cpu_inc(counter);
+	else {
+		this_cpu_write(counter, next_end);
+		this_cpu_write(current_end, next_end);
+	}
+
+	return this_cpu_read(counter);
 }
 EXPORT_SYMBOL(muen_clock_read);
 
