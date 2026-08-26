@@ -50,6 +50,13 @@ static u64 muen_cs_read(struct clocksource *arg)
 	return atomic64_read(&global_last_end);
 }
 
+#ifdef CONFIG_DEBUG_TIMEKEEPING
+#define MEUN_CS_FLAGS_DEBUG \
+	(CLOCK_SOURCE_MUST_VERIFY | CLOCK_SOURCE_VERIFY_PERCPU)
+#else
+#define MEUN_CS_FLAGS_DEBUG 0
+#endif
+
 /*
  * Note that the clocksource for arm64 currently does not support vDSO
  * mode (i.e. direct access by the user space to clock counter, so no
@@ -62,7 +69,10 @@ static struct clocksource muen_cs = {
 	.rating			= 600,
 	.read			= muen_cs_read,
 	.mask			= CLOCKSOURCE_MASK(64),
-	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS
+				| CLOCK_SOURCE_VALID_FOR_HRES
+				| MEUN_CS_FLAGS_DEBUG,
+	.uncertainty_margin = 3 * NSEC_PER_MSEC, // depends on scheduling plan.
 	.vdso_clock_mode	= VDSO_CLOCKMODE_NONE
 };
 
