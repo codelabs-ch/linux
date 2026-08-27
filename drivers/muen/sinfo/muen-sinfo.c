@@ -44,14 +44,18 @@ static DEFINE_PER_CPU(bool, subject_name_unset) = true;
 static unsigned long long sinfo_addr;
 static int __init setup_sinfo_addr(char *arg)
 {
-	if (kstrtoull(arg, 16, &sinfo_addr))
+	unsigned long long addr;
+	if (kstrtoull(arg, 16, &addr))
 		return -EINVAL;
 
-	muen_sinfo_early_init(sinfo_addr);
+	if (!sinfo_addr)
+		muen_sinfo_early_init(addr);
+	else
+		/* hvc ultra early init may parse this independently */
+		WARN_ON(sinfo_addr && sinfo_addr != addr);
 
 	return 0;
 }
-
 early_param("muen_sinfo", setup_sinfo_addr);
 
 static DEFINE_PER_CPU(const struct subject_info_type *, subject_info);
@@ -290,6 +294,8 @@ EXPORT_SYMBOL(muen_get_sched_end);
 
 void __init muen_sinfo_early_init(unsigned long long addr)
 {
+	WARN(sinfo_addr, "muen-sinfo: Redundant early init!");
+
 	const struct subject_info_type * const sinfo =
 		early_memremap_ro(addr, SINFO_SIZE);
 	const struct muen_scheduling_info_type * const sched_info =

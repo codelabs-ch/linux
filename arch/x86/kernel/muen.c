@@ -149,7 +149,10 @@ static void __init muen_platform_setup(void)
 
 static uint32_t __init muen_platform(void)
 {
-	return muen_check_magic();
+	bool ok = muen_check_magic();
+	/* sinfo should have been setup by early_param */
+	WARN(!ok, "muen: Early sinfo not available!\n");
+	return ok;
 }
 
 const __initconst struct hypervisor_x86 x86_hyper_muen = {
