@@ -612,10 +612,10 @@ static bool __init early_get_dbglog(const char *cmdline)
 static int __init hvc_muen_earlycon_setup(struct earlycon_device *device, const char *opt)
 {
 	int ret;
-	unsigned long long sinfo_base;
+	unsigned long long sinfo_addr;
 	char con_name[64];
 
-	ret = early_get_u64(boot_command_line, "muen_sinfo=", &sinfo_base);
+	ret = early_get_u64(boot_command_line, "muen_sinfo=", &sinfo_addr);
 	if (ret) {
 		pr_warn("hvc_muen: Unable to extract muen_sinfo value from cmdline\n");
 		return ret;
@@ -630,7 +630,7 @@ static int __init hvc_muen_earlycon_setup(struct earlycon_device *device, const 
 		early_output_init = output_init_dbglog;
 	}
 
-	muen_sinfo_early_init_base(sinfo_base);
+	muen_sinfo_early_init(sinfo_addr);
 
 	const struct muen_resource_type *const
 		region = muen_get_resource(con_name, MUEN_RES_MEMORY);

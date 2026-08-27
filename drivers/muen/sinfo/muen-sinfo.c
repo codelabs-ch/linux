@@ -32,6 +32,12 @@
 #include <linux/module.h>
 #include <muen/sinfo.h>
 
+#define SINFO_SIZE sizeof(struct subject_info_type)
+#define SCHED_INFO_SIZE sizeof(struct muen_scheduling_info_type)
+
+#define SINFO_PAGE_SIZE roundup(SINFO_SIZE, PAGE_SIZE)
+#define SCHED_INFO_PAGE_SIZE roundup(SCHED_INFO_SIZE, PAGE_SIZE)
+
 static DEFINE_PER_CPU(char [MAX_NAME_LENGTH + 1], subject_name);
 static DEFINE_PER_CPU(bool, subject_name_unset) = true;
 
@@ -41,7 +47,7 @@ static int __init setup_sinfo_addr(char *arg)
 	if (kstrtoull(arg, 16, &sinfo_addr))
 		return -EINVAL;
 
-	muen_sinfo_early_init();
+	muen_sinfo_early_init(sinfo_addr);
 
 	return 0;
 }
@@ -66,22 +72,6 @@ struct iterator {
 	const struct muen_resource_type *res;
 	unsigned int idx;
 };
-
-/*
- * Returns the sinfo base physical address for the calling CPU.
- */
-static unsigned long long get_base_addr(unsigned int cpu)
-{
-	const unsigned long sinfo_page_size = roundup
-		(sizeof(struct subject_info_type),
-		 PAGE_SIZE);
-	const unsigned long sched_info_page_size = roundup
-		(sizeof(struct muen_scheduling_info_type),
-		 PAGE_SIZE);
-
-	return sinfo_addr + (sinfo_page_size + sched_info_page_size)
-		* cpu;
-}
 
 /*
  * Iterate over all resources beginning at given start resource.  If the res
@@ -298,30 +288,17 @@ inline uint64_t muen_get_sched_end(void)
 }
 EXPORT_SYMBOL(muen_get_sched_end);
 
-void __init muen_sinfo_early_init_base(unsigned long long base_addr)
+void __init muen_sinfo_early_init(unsigned long long addr)
 {
-	const unsigned long sinfo_page_size = roundup
-		(sizeof(struct subject_info_type),
-		 PAGE_SIZE);
 	const struct subject_info_type * const sinfo =
-		(struct subject_info_type *)
-		early_memremap_ro(base_addr, sizeof(struct subject_info_type));
+		early_memremap_ro(addr, SINFO_SIZE);
 	const struct muen_scheduling_info_type * const sched_info =
-		(struct muen_scheduling_info_type *)
-		early_memremap_ro(base_addr + sinfo_page_size,
-			      sizeof(struct muen_scheduling_info_type));
+		early_memremap_ro(addr + SINFO_PAGE_SIZE, SCHED_INFO_SIZE);
 
 	per_cpu(subject_info, smp_processor_id()) = sinfo;
 	per_cpu(scheduling_info, smp_processor_id()) = sched_info;
 
-	pr_info("muen-sinfo: Early Subject information    @ 0x%016llx\n", base_addr);
-}
-
-void __init muen_sinfo_early_init(void)
-{
-	const unsigned long long base_addr = get_base_addr(smp_processor_id());
-
-	muen_sinfo_early_init_base(base_addr);
+	pr_info("muen-sinfo: Early Subject information    @ 0x%016llx\n", addr);
 }
 
 static int __init muen_sinfo_init(void)
@@ -330,32 +307,29 @@ static int __init muen_sinfo_init(void)
 	void *early_sinfo = (void *)this_cpu_read(subject_info);
 	void *early_sched_info = (void *)this_cpu_read(scheduling_info);
 
-	ret = muen_sinfo_setup(smp_processor_id());
+	WARN_ON(smp_processor_id() != 0);
+	ret = muen_sinfo_setup(0);
 
 	if (early_sinfo)
 		pr_info("muen-sinfo: Unmapping early Subject Information @ %016px\n", early_sinfo);
 	if (early_sinfo)
-		early_memunmap(early_sinfo, sizeof(struct subject_info_type));
+		early_memunmap(early_sinfo, SINFO_SIZE);
 	if (early_sched_info)
-		early_memunmap(early_sched_info, sizeof(struct muen_scheduling_info_type));
+		early_memunmap(early_sched_info, SCHED_INFO_SIZE);
 	return ret;
 }
 
 int muen_sinfo_setup(unsigned int cpu)
 {
-	const unsigned long sinfo_page_size = roundup
-		(sizeof(struct subject_info_type),
-		 PAGE_SIZE);
-	const unsigned long long base_addr = get_base_addr(cpu);
-	const struct subject_info_type *sinfo = (struct subject_info_type *)
+	const unsigned long long base_addr =
+		sinfo_addr + (SINFO_PAGE_SIZE + SCHED_INFO_PAGE_SIZE) * cpu;
+
+	const struct subject_info_type *sinfo =
 		memremap(base_addr,
-			 sizeof(struct subject_info_type),
-			 MEMREMAP_WB);
+			 SINFO_SIZE, MEMREMAP_WB);
 	const struct muen_scheduling_info_type *sched_info =
-		(struct muen_scheduling_info_type *)
-		memremap(base_addr + sinfo_page_size,
-			 sizeof(struct muen_scheduling_info_type),
-			 MEMREMAP_WB);
+		memremap(base_addr + SINFO_PAGE_SIZE,
+			 SCHED_INFO_SIZE, MEMREMAP_WB);
 
 	per_cpu(subject_info, cpu) = sinfo;
 	if (!muen_check_magic()) {
@@ -366,7 +340,7 @@ int muen_sinfo_setup(unsigned int cpu)
 
 	pr_info("muen-sinfo: Subject information    @ 0x%016llx CPU#%u\n", base_addr, cpu);
 	pr_info("muen-sinfo: Scheduling information @ 0x%016llx\n",
-		base_addr + sinfo_page_size);
+		base_addr + SINFO_PAGE_SIZE);
 	pr_info("muen-sinfo: Subject name is '%s'\n", muen_get_subject_name());
 
 	return 0;
@@ -384,12 +358,7 @@ EXPORT_SYMBOL(muen_sinfo_log_resources);
 
 uint64_t muen_get_schedinfo_page_bsp(void)
 {
-	const unsigned long sinfo_page_size = roundup
-		(sizeof(struct subject_info_type),
-		 PAGE_SIZE);
-	const unsigned long long base_addr = get_base_addr(0);
-
-	return base_addr + sinfo_page_size;
+	return sinfo_addr + SINFO_PAGE_SIZE;
 }
 
 console_initcall(muen_sinfo_init);

@@ -204,13 +204,7 @@ struct subject_info_type {
  * Initialize Muen subject info data for early use when memremap is not yet
  * available.
  */
-void __init muen_sinfo_early_init(void);
-
-/*
- * Initialize Muen subject info data for early use when memremap is not yet
- * available. Use specified address as sinfo base.
- */
-void __init muen_sinfo_early_init_base(unsigned long long base_addr);
+void __init muen_sinfo_early_init(unsigned long long addr);
 
 /*
  * Setup Muen subject info data for given CPU.
