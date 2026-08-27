@@ -295,8 +295,14 @@ void __init muen_sinfo_early_init(unsigned long long addr)
 	const struct muen_scheduling_info_type * const sched_info =
 		early_memremap_ro(addr + SINFO_PAGE_SIZE, SCHED_INFO_SIZE);
 
-	per_cpu(subject_info, smp_processor_id()) = sinfo;
-	per_cpu(scheduling_info, smp_processor_id()) = sched_info;
+	if (sinfo->magic != MUEN_SUBJECT_INFO_MAGIC) {
+		pr_err("muen-sinfo: Early Subject information MAGIC mismatch\n");
+		return;
+	}
+
+	sinfo_addr = addr;
+	this_cpu_write(subject_info, sinfo);
+	this_cpu_write(scheduling_info, sched_info);
 
 	pr_info("muen-sinfo: Early Subject information    @ 0x%016llx\n", addr);
 }
@@ -331,11 +337,11 @@ int muen_sinfo_setup(unsigned int cpu)
 		memremap(base_addr + SINFO_PAGE_SIZE,
 			 SCHED_INFO_SIZE, MEMREMAP_WB);
 
-	per_cpu(subject_info, cpu) = sinfo;
-	if (!muen_check_magic()) {
+	if (sinfo->magic != MUEN_SUBJECT_INFO_MAGIC) {
 		pr_err("muen-sinfo: Subject information MAGIC mismatch\n");
 		return -EINVAL;
 	}
+	per_cpu(subject_info, cpu) = sinfo;
 	per_cpu(scheduling_info, cpu) = sched_info;
 
 	pr_info("muen-sinfo: Subject information    @ 0x%016llx CPU#%u\n", base_addr, cpu);
