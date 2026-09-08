@@ -91,7 +91,7 @@ static int muen_smp_online_cpu(unsigned int cpu)
 {
 	pr_info("muen-smp: Online CPU#%u", cpu);
 
-	muen_register_resources();
+	muen_register_resources(cpu);
 	//^ TODO: Move earlier. Not valid in STARTING due to sleeping mutex
 	// in irq_create_mapping.
 	/* Note: before muen_register_clkevent_dev due to request_irq dependency */
@@ -111,7 +111,7 @@ static int __init muen_pre_smp_init(void)
 	int ret;
 
 	muen_sinfo_log_resources();
-	muen_register_resources();
+	muen_register_resources(0 /* BSP */);
 
 	if (IS_ENABLED(CONFIG_MUEN_CLKSRC)) {
 		muen_setup_timer_page(0);

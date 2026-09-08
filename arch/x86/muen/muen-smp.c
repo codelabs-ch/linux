@@ -150,7 +150,7 @@ static void notrace start_secondary(void *unused)
 	muen_smp_setup_events();
 	muen_setup_timer_event();
 	muen_register_clockevent_dev();
-	muen_register_resources();
+	muen_register_resources(smp_processor_id());
 	muen_sinfo_log_resources();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
@@ -260,7 +260,7 @@ static void __init muen_smp_prepare_cpus(unsigned int max_cpus)
 	muen_setup_timer_page(0);
 	muen_setup_timer_event();
 	muen_register_clockevent_dev();
-	muen_register_resources();
+	muen_register_resources(0 /* BSP */);
 
 	/* In the non-SMP case, verify timer vector only */
 	if (nr_cpu_ids == 1) {

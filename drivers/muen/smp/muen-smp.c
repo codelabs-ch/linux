@@ -180,16 +180,15 @@ static DEFINE_SPINLOCK(affinity_list_lock);
 static struct list_head affinity_list = LIST_HEAD_INIT(affinity_list);
 
 /* Add new entry to CPU affinity list */
-static void affinity_list_add_entry(const struct muen_resource_type *const res)
+static void affinity_list_add_entry(unsigned int cpu, const struct muen_resource_type *const res)
 {
-	const unsigned int this_cpu = smp_processor_id();
 	struct muen_cpu_affinity *entry;
 
 	entry = kzalloc(sizeof(struct muen_cpu_affinity), GFP_ATOMIC);
 
 	BUG_ON(!entry);
 	entry->res = *res;
-	entry->cpu = this_cpu;
+	entry->cpu = cpu;
 
 	spin_lock(&affinity_list_lock);
 	list_add_tail_rcu(&entry->list, &affinity_list);
@@ -199,6 +198,8 @@ static void affinity_list_add_entry(const struct muen_resource_type *const res)
 static bool register_resource(
 	const struct muen_resource_type *const res, void *data)
 {
+	unsigned int cpu = *(unsigned int*)data;
+
 	switch (res->kind) {
 	case MUEN_RES_DEVICE:
 		/*
@@ -207,13 +208,13 @@ static bool register_resource(
 		 * one CPU.
 		 */
 		if (res->data.dev.ir_count)
-			affinity_list_add_entry(res);
+			affinity_list_add_entry(cpu, res);
 		break;
 	case MUEN_RES_EVENT:
-		affinity_list_add_entry(res);
+		affinity_list_add_entry(cpu, res);
 		break;
 	case MUEN_RES_VECTOR:
-		affinity_list_add_entry(res);
+		affinity_list_add_entry(cpu, res);
 
 		muen_arch_allocate_vector(res);
 		break;
@@ -224,9 +225,9 @@ static bool register_resource(
 	return true;
 }
 
-void muen_register_resources(void)
+void muen_register_resources(unsigned int cpu)
 {
-	muen_for_each_resource(register_resource, NULL);
+	muen_for_each_resource(register_resource, &cpu);
 }
 
 int muen_smp_get_res_affinity(struct muen_cpu_affinity *const result,
