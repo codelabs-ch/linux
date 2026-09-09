@@ -19,7 +19,6 @@
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
-#include <linux/kvm_para.h>
 #include <linux/random.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
@@ -48,7 +47,7 @@ struct muencons_info {
 	struct muchannel_reader reader;
 	uint64_t channel_size;
 	int vtermno;
-	int event;
+	struct muen_smp_event sevt;
 	int vector;
 	send_func_t send;
 	output_init_func_t output_init;
@@ -182,8 +181,7 @@ static int hvc_muen_put(uint32_t vtermno, const char *data, int count)
 
 	cons->send(cons->channel_out, data, count);
 
-	if (cons->event >= 0)
-		kvm_hypercall0(cons->event);
+	muen_smp_trigger_event(&cons->sevt);
 
 	return count;
 }
@@ -254,7 +252,7 @@ static void hvc_muen_set_cpu(int cpu)
 	hvc_muen_cpu = cpu;
 }
 
-static struct muencons_info *__init muencons_init(int vtermno, int event,
+static struct muencons_info *__init muencons_init(int vtermno, struct muen_smp_event sevt,
 						  int vector, uint64_t size,
 						  struct muchannel *out,
 						  struct muchannel *in)
@@ -270,7 +268,7 @@ static struct muencons_info *__init muencons_init(int vtermno, int event,
 	info->channel_out = out;
 	info->channel_in = in;
 	info->vtermno = vtermno;
-	info->event = event;
+	info->sevt = sevt;
 	info->vector = vector;
 
 	return info;
@@ -282,12 +280,13 @@ static struct muencons_info *__init muencons_init(int vtermno, int event,
  */
 static int __init hvc_muen_init_console(int index, uint64_t epoch)
 {
-	int rc, evtno = -1, vecno = 0;
+	int rc, vecno = 0;
 	unsigned long flags;
 	struct muencons_info *info;
 	struct muchannel *output;
 	struct muchannel *input = NULL;
-	struct muen_cpu_affinity evt, vec;
+	struct muen_cpu_affinity vec;
+	struct muen_smp_event sevt;
 	const struct muen_resource_type *outres, *inres = NULL;
 
 	if (index >= hvc_muen_out_count || !out[index])
@@ -305,16 +304,15 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		return -EINVAL;
 	}
 
-	if (muen_smp_one_match(&evt, out[index], MUEN_RES_EVENT)) {
-		if (evt.cpu != hvc_muen_cpu) {
+	if (muen_smp_get_event(&sevt, out[index], MUEN_RES_EVENT)) {
+		if (sevt.cpu != hvc_muen_cpu) {
 			if (hvc_muen_cpu != -1) {
 				pr_err("hvc_muen[%d]: Output event affinity mismatch %d != %d\n",
-				       index, evt.cpu, hvc_muen_cpu);
+				       index, sevt.cpu, hvc_muen_cpu);
 				return -EINVAL;
 			}
-			hvc_muen_set_cpu(evt.cpu);
+			hvc_muen_set_cpu(sevt.cpu);
 		}
-		evtno = evt.res.data.number;
 	} else
 		pr_debug("hvc_muen[%d]: No event for output channel %s\n",
 			 index, out[index]);
@@ -325,7 +323,7 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 
 	pr_info("hvc_muen[%d]: Out channel %s @ 0x%llx, size 0x%llx, event %d\n",
 		index, out[index], outres->data.mem.address,
-		outres->data.mem.size, evtno);
+		outres->data.mem.size, sevt.number);
 
 	if (index >= hvc_muen_in_count || !in[index]) {
 		pr_info("hvc_muen[%d]: No input channel\n", index);
@@ -339,7 +337,7 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 
 				if (vec.cpu != hvc_muen_cpu)
 					pr_info("hvc_muen[%d]: Input vector affinity mismatch %d != %d\n",
-						index, evt.cpu,
+						index, sevt.cpu,
 						hvc_muen_cpu);
 				else {
 					if (vec.res.data.number >= ISA_IRQ_VECTOR(0))
@@ -365,7 +363,7 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		}
 	}
 
-	info = muencons_init(HVC_MUEN_COOKIE + index, evtno, vecno,
+	info = muencons_init(HVC_MUEN_COOKIE + index, sevt, vecno,
 			     outres->data.mem.size, output, input);
 	if (IS_ERR(info)) {
 		rc = PTR_ERR(info);
@@ -481,6 +479,7 @@ static void hvc_muen_destroy(void)
 			muen_channel_deactivate(entry->channel_out);
 			memunmap(entry->channel_in);
 		}
+		muen_smp_sync_event(&entry->sevt);
 		kfree(entry);
 	}
 	hvc_muen_cpu = -1;

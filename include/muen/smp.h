@@ -1,6 +1,7 @@
 #ifndef MUEN_SMP_H
 #define MUEN_SMP_H
 
+#include <linux/irq_work.h>
 #include <muen/sinfo.h>
 
 #ifdef CONFIG_ARM64
@@ -23,6 +24,13 @@ struct muen_cpu_affinity {
 	uint8_t cpu;
 	struct muen_resource_type res;
 	struct list_head list;
+};
+
+struct muen_smp_event {
+	struct irq_work work;
+	bool valid;
+	unsigned int cpu;
+	int number;
 };
 
 /* CPU resource affinity match function. */
@@ -65,13 +73,26 @@ bool muen_smp_one_match(struct muen_cpu_affinity *const result,
  */
 void muen_smp_free_res_affinity(struct muen_cpu_affinity *const to_free);
 
+
+void muen_smp_init_event_from_affinity(struct muen_smp_event *sevt,
+		const struct muen_cpu_affinity *const aff);
+bool muen_smp_get_event(struct muen_smp_event *sevt,
+		const char *const name, const enum muen_resource_kind kind);
+
 /*
- * Trigger event on given CPU. Must not be called with IRQs disabled if the
- * target cpu is not the current cpu.
+ * Trigger muen event targeting any CPU. Can be called from any
+ * context. Hypercall to trigger event may or may not run synchronously.
+ *
+ * Cleanup: Must always call muen_smp_sync_event() before releasing sevt
+ * storage.
  */
-void muen_smp_trigger_event(const uint8_t id, const uint8_t cpu);
+void muen_smp_trigger_event(struct muen_smp_event *sevt);
 
-
+/*
+ * Ensure it's safe to free sevt storage by waiting for inflight async
+ * hypercall.
+ */
+void muen_smp_sync_event(struct muen_smp_event *sevt);
 
 // Internals: Move back to static once smp is in drivers/
 

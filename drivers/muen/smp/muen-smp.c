@@ -20,6 +20,7 @@
 #include <linux/kvm_para.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <linux/irq_work.h>
 #include <linux/stackprotector.h>
 #include <linux/smp.h>
 #include <linux/sched/task_stack.h>
@@ -65,31 +66,68 @@ void muen_smp_verify_vec(const char *const name, const unsigned int ref)
 	}
 }
 
-static void do_trigger_event(void *data)
+static void do_trigger_event(struct irq_work *wrk)
 {
-	uint8_t *id = data;
-
-	kvm_hypercall0(*id);
+	struct muen_smp_event *sevt = container_of(wrk, struct muen_smp_event, work);
+	kvm_hypercall0(sevt->number);
 }
 
-void muen_smp_trigger_event(const uint8_t id, const uint8_t cpu)
+void muen_smp_init_event_from_affinity(
+	struct muen_smp_event *sevt,
+	const struct muen_cpu_affinity *const aff)
+{
+	sevt->number = aff->res.data.number;
+	sevt->cpu = aff->cpu;
+	sevt->valid = true;
+	init_irq_work(&sevt->work, do_trigger_event);
+}
+EXPORT_SYMBOL(muen_smp_init_event_from_affinity);
+
+bool muen_smp_get_event(
+	struct muen_smp_event *sevt,
+	const char *const name, const enum muen_resource_kind kind)
+{
+	struct muen_cpu_affinity aff;
+	if (muen_smp_one_match(&aff, name, kind)) {
+		muen_smp_init_event_from_affinity(sevt, &aff);
+		return true;
+	}
+
+	sevt->number = -1;
+	sevt->valid = false;
+
+	return false;
+}
+EXPORT_SYMBOL(muen_smp_get_event);
+
+void muen_smp_trigger_event(struct muen_smp_event *sevt)
 {
 	unsigned int this_cpu;
 
-	preempt_disable();
-	this_cpu = smp_processor_id();
+	if (sevt->number == -1 || WARN_ON_ONCE(!sevt->valid))
+		return;
 
-	BUG_ON(cpu >= nr_cpu_ids);
+	this_cpu = get_cpu(); /* disable preemption */
 
-	if (cpu == this_cpu)
-		kvm_hypercall0(id);
-	else
-		smp_call_function_single(cpu, do_trigger_event, (void *)&id, 1);
-	//^ does get_cpu() internally. do we neede the preempt dance?
+	BUG_ON(sevt->cpu >= nr_cpu_ids);
+	if (sevt->cpu == this_cpu)
+		kvm_hypercall0(sevt->number);
+	else {
+		irq_work_queue_on(&sevt->work, sevt->cpu);
+	}
 
-	preempt_enable();
+	put_cpu();
 }
 EXPORT_SYMBOL(muen_smp_trigger_event);
+
+void muen_smp_sync_event(struct muen_smp_event *sevt)
+{
+	irq_work_sync(&sevt->work);
+	sevt->valid = false;
+	sevt->number = -1;
+}
+EXPORT_SYMBOL(muen_smp_sync_event);
+
 
 #if 0
 static bool affinity_match_irq(
