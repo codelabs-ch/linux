@@ -53,8 +53,6 @@ struct muencons_info {
 	output_init_func_t output_init;
 };
 
-/* CPU to which Muen HVC driver is pinned to */
-static int hvc_muen_cpu = -1;
 /* Shared memory channel epoch */
 static uint64_t hvc_muen_epoch;
 
@@ -239,19 +237,6 @@ static const struct hv_ops hvc_muen_ops = {
 	.notifier_hangup = notifier_hangup_irq,
 };
 
-static void hvc_muen_set_cpu(int cpu)
-{
-	int rc;
-	/*
-	 * Pin to event CPU. Required because hvc_muen_put() runs with IRQs
-	 * disabled, so it is not possible to use smp_call_function_single() or
-	 * smp_call_on_cpu() to trigger an event on a remote CPU.
-	 */
-	rc = set_cpus_allowed_ptr(current, cpumask_of(cpu));
-	BUG_ON(rc || smp_processor_id() != cpu);
-	hvc_muen_cpu = cpu;
-}
-
 static struct muencons_info *__init muencons_init(int vtermno, struct muen_smp_event sevt,
 						  int vector, uint64_t size,
 						  struct muchannel *out,
@@ -304,16 +289,7 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 		return -EINVAL;
 	}
 
-	if (muen_smp_get_event(&sevt, out[index], MUEN_RES_EVENT)) {
-		if (sevt.cpu != hvc_muen_cpu) {
-			if (hvc_muen_cpu != -1) {
-				pr_err("hvc_muen[%d]: Output event affinity mismatch %d != %d\n",
-				       index, sevt.cpu, hvc_muen_cpu);
-				return -EINVAL;
-			}
-			hvc_muen_set_cpu(sevt.cpu);
-		}
-	} else
+	if (!muen_smp_get_event(&sevt, out[index], MUEN_RES_EVENT))
 		pr_debug("hvc_muen[%d]: No event for output channel %s\n",
 			 index, out[index]);
 
@@ -330,26 +306,15 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 	} else {
 		inres = muen_get_resource(in[index], MUEN_RES_MEMORY);
 		if (inres) {
-			if (muen_smp_one_match(&vec, in[index],
-					       MUEN_RES_VECTOR)) {
-				if (hvc_muen_cpu == -1)
-					hvc_muen_set_cpu(vec.cpu);
-
-				if (vec.cpu != hvc_muen_cpu)
-					pr_info("hvc_muen[%d]: Input vector affinity mismatch %d != %d\n",
-						index, sevt.cpu,
-						hvc_muen_cpu);
-				else {
-					if (vec.res.data.number >= ISA_IRQ_VECTOR(0))
-						vecno = vec.res.data.number - ISA_IRQ_VECTOR(0);
-					else
-						pr_warn("hvc_muen[%d]: Input vector %d invalid\n",
-							index, vec.res.data.number);
-				}
+			if (muen_smp_one_match(&vec, in[index], MUEN_RES_VECTOR)) {
+				if (vec.res.data.number >= ISA_IRQ_VECTOR(0))
+					vecno = vec.res.data.number - ISA_IRQ_VECTOR(0);
+				else
+					pr_warn("hvc_muen[%d]: Input vector %d invalid\n",
+						index, vec.res.data.number);
 			} else
-				pr_debug(
-					"hvc_muen[%d]: No vector data for input channel %s\n",
-					index, in[index]);
+				pr_debug("hvc_muen[%d]: No vector data for input channel %s\n",
+					 index, in[index]);
 		} else
 			pr_info("hvc_muen[%d]: No input channel %s\n", index,
 				in[index]);
@@ -482,7 +447,6 @@ static void hvc_muen_destroy(void)
 		muen_smp_sync_event(&entry->sevt);
 		kfree(entry);
 	}
-	hvc_muen_cpu = -1;
 	hvc_muen_epoch = 0;
 	spin_unlock_irqrestore(&muencons_lock, flags);
 }
@@ -507,9 +471,6 @@ static int __init hvc_muen_console_init(void)
 
 	if (!muen_smp_one_match(&evt, out[0], MUEN_RES_EVENT))
 		pr_debug("hvc_muen[0]: No event for initial console %s\n", out[0]);
-	else
-		hvc_muen_set_cpu(evt.cpu);
-
 	/* NOTE: Instantiation *must* precede allocation */
 	rc = hvc_instantiate(HVC_MUEN_COOKIE, 0, &hvc_muen_ops);
 	if (rc) {
