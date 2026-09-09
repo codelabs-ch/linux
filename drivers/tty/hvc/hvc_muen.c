@@ -414,7 +414,7 @@ static int __init hvc_muen_device_init(void)
 			return rc;
 		}
 	}
-	pr_debug("hvc_muen: Allocated %d HVC terminal device(s)\n", count);
+	pr_info("hvc_muen: Allocated %d HVC terminal device(s)\n", count);
 
 	return rc;
 }
