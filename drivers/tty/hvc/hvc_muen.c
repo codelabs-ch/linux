@@ -394,7 +394,7 @@ static int __init hvc_muen_alloc_console(int index)
 	return 0;
 }
 
-static int __init hvc_muen_init(void)
+static int __init hvc_muen_device_init(void)
 {
 	int i, rc;
 	int count = min(hvc_muen_out_count, HVC_MUEN_MAX_COUNT);
@@ -418,7 +418,7 @@ static int __init hvc_muen_init(void)
 
 	return rc;
 }
-device_initcall(hvc_muen_init);
+device_initcall(hvc_muen_device_init);
 
 static void hvc_muen_destroy(void)
 {
@@ -451,7 +451,7 @@ static void hvc_muen_destroy(void)
 	spin_unlock_irqrestore(&muencons_lock, flags);
 }
 
-static int __init hvc_muen_console_init(void)
+static int __init hvc_muen_early_init(void)
 {
 	int rc;
 	struct muen_cpu_affinity evt;
@@ -484,7 +484,13 @@ static int __init hvc_muen_console_init(void)
 
 	return rc;
 }
-early_initcall(hvc_muen_console_init);
+early_initcall(hvc_muen_early_init);
+// Should be in console_initcall, but that's too early for smp affinity
+// list (early_initcall). Regular sinfo works tho so could just retry for
+// the event later.
+//
+// early_initcall works here *only* because of arch/ vs device/ link
+// order. Not really clean either.
 
 static void hvc_muen_earlycon_write(struct console *co,
 				    const char *data,
