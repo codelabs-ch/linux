@@ -68,12 +68,16 @@ static int muen_smp_prepare_cpu(unsigned int cpu)
 		muen_setup_timer_page(cpu);
 	}
 
+	smp_wmb();
+
 	return 0;
 }
 
 static int muen_smp_starting_cpu(unsigned int cpu)
 {
 	pr_info("muen-smp: Starting CPU#%u", cpu);
+
+	smp_rmb();
 
 	BUG_ON(!muen_check_magic());
 	muen_sinfo_log_resources();
