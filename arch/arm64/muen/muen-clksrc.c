@@ -72,7 +72,7 @@ static struct clocksource muen_cs = {
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS
 				| CLOCK_SOURCE_VALID_FOR_HRES
 				| MEUN_CS_FLAGS_DEBUG,
-	.uncertainty_margin = 3 * NSEC_PER_MSEC, // depends on scheduling plan.
+	.uncertainty_margin = 5 * NSEC_PER_MSEC, // depends on scheduling plan.
 	.vdso_clock_mode	= VDSO_CLOCKMODE_NONE
 };
 
