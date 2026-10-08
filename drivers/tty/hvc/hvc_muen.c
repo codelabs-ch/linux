@@ -46,7 +46,8 @@ struct muencons_info {
 	struct muchannel *channel_out;
 	struct muchannel *channel_in;
 	struct muchannel_reader reader;
-	uint64_t channel_size;
+	uint64_t channel_out_size;
+	uint64_t channel_in_size;
 	int vtermno;
 	int event;
 	int vector;
@@ -257,7 +258,8 @@ static void hvc_muen_set_cpu(int cpu)
 static struct muencons_info *__init muencons_init(int vtermno, int event,
 						  int vector, uint64_t size,
 						  struct muchannel *out,
-						  struct muchannel *in)
+						  struct muchannel *in,
+						  uint64_t in_size)
 {
 	struct muencons_info *info = vtermno_to_cons(vtermno);
 
@@ -266,9 +268,10 @@ static struct muencons_info *__init muencons_init(int vtermno, int event,
 		if (!info)
 			return ERR_PTR(-ENOMEM);
 	}
-	info->channel_size = size;
+	info->channel_out_size = size;
 	info->channel_out = out;
 	info->channel_in = in;
+	info->channel_in_size = in_size;
 	info->vtermno = vtermno;
 	info->event = event;
 	info->vector = vector;
@@ -377,7 +380,8 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 	}
 
 	info = muencons_init(HVC_MUEN_COOKIE + index, evtno, vecno,
-			     outres->data.mem.size, output, input);
+			     outres->data.mem.size, output, input,
+			     inres ? inres->data.mem.size : 0);
 	if (IS_ERR(info)) {
 		rc = PTR_ERR(info);
 		pr_err("hvc_muen[%d]: Error initializing console %d\n", index,
@@ -400,10 +404,11 @@ static int __init hvc_muen_init_console(int index, uint64_t epoch)
 	 * Otherwise we will lose log messages.
 	 */
 	if (early_out_len == 0 || index > 0)
-		info->output_init(info->channel_out, info->channel_size, epoch);
+		info->output_init(info->channel_out, info->channel_out_size, epoch);
 
 	if (info->channel_in)
-		muen_channel_init_reader(&info->reader, HVC_MUEN_PROTOCOL);
+		muen_channel_init_reader(&info->reader, HVC_MUEN_PROTOCOL,
+					 sizeof(char), info->channel_in_size);
 
 	spin_lock_irqsave(&muencons_lock, flags);
 	list_add_tail(&info->list, &muencons);
@@ -432,7 +437,7 @@ static int __init hvc_muen_alloc_console(int index)
 
 	info->hvc =
 		hvc_alloc(HVC_MUEN_COOKIE + index, info->vector, &hvc_muen_ops,
-			  info->channel_size - sizeof(struct muchannel_header));
+			  info->channel_out_size - sizeof(struct muchannel_header));
 	if (IS_ERR(info->hvc)) {
 		rc = PTR_ERR(info->hvc);
 		pr_err("hvc_muen[%d]: Error allocating HVC %d\n", index, rc);

@@ -14,8 +14,8 @@
  * GNU General Public License for more details.
  */
 
-#include <asm/div64.h>
 #include <linux/export.h>
+#include <linux/math64.h>
 #include <linux/string.h>
 
 #include <muen/reader.h>
@@ -30,31 +30,47 @@ static enum muchannel_reader_result synchronize(
 		const struct muchannel *const channel,
 		struct muchannel_reader *reader)
 {
-	enum muchannel_reader_result result;
+	u64 epoch, epoch_after, proto, transport, size, elements, data_size;
 
-	if (reader->protocol == atomic64_read(&channel->hdr.protocol) &&
-		atomic64_read(&channel->hdr.transport) == SHMSTREAM20) {
+	epoch = atomic64_read(&channel->hdr.epoch);
+	/* Read header fields only after epoch */
+	smp_rmb();
+	proto = atomic64_read(&channel->hdr.protocol);
+	transport = atomic64_read(&channel->hdr.transport);
+	size = atomic64_read(&channel->hdr.size);
+	elements = atomic64_read(&channel->hdr.elements);
+	/* Re-read epoch after header fields to detect reads during epoch change */
+	smp_rmb();
+	epoch_after = atomic64_read(&channel->hdr.epoch);
 
-		reader->epoch = atomic64_read(&channel->hdr.epoch);
-		reader->size = atomic64_read(&channel->hdr.size);
-		reader->elements =
-			atomic64_read(&channel->hdr.elements);
-		reader->rc = 0;
+	if (epoch == MUCHANNEL_NULL_EPOCH || epoch != epoch_after)
+		return MUCHANNEL_INCOMPATIBLE_INTERFACE;
 
-		result = MUCHANNEL_EPOCH_CHANGED;
-	} else
-		result = MUCHANNEL_INCOMPATIBLE_INTERFACE;
+	if (reader->channel_size <= sizeof(struct muchannel_header))
+		return MUCHANNEL_INCOMPATIBLE_INTERFACE;
+	data_size = reader->channel_size - sizeof(struct muchannel_header);
 
-	return result;
+	if (reader->protocol != proto || transport != SHMSTREAM20 ||
+	    size == 0 || size != reader->size ||
+	    elements == 0 || elements > div64_u64(data_size, size))
+		return MUCHANNEL_INCOMPATIBLE_INTERFACE;
+
+	reader->epoch = epoch;
+	reader->elements = elements;
+	reader->rc = 0;
+
+	return MUCHANNEL_EPOCH_CHANGED;
 };
 
-void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol)
+void muen_channel_init_reader(struct muchannel_reader *reader, u64 protocol,
+			      u64 element_size, u64 channel_size)
 {
 	reader->epoch = MUCHANNEL_NULL_EPOCH;
 	reader->protocol = protocol;
-	reader->size = 0;
+	reader->size = element_size;
 	reader->elements = 0;
 	reader->rc = 0;
+	reader->channel_size = channel_size;
 };
 EXPORT_SYMBOL(muen_channel_init_reader);
 
@@ -74,8 +90,8 @@ enum muchannel_reader_result muen_channel_read(
 		if (reader->rc >= atomic64_read(&channel->hdr.wc))
 			result = MUCHANNEL_NO_DATA;
 		else {
-			rc = reader->rc;
-			pos = do_div(rc, reader->elements) * reader->size;
+			div64_u64_rem(reader->rc, reader->elements, &rc);
+			pos = rc * reader->size;
 			memcpy(element, channel->data + pos, reader->size);
 
 			if (atomic64_read(&channel->hdr.wsc) >

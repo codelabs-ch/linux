@@ -163,6 +163,7 @@ static int __init muen_input_init(void)
 	struct muen_input_event ev;
 	uint8_t irq_number;
 	int i, error;
+	u64 channel_size;
 	struct muen_cpu_affinity evt_vec;
 
 	const struct muen_resource_type *const
@@ -192,6 +193,7 @@ static int __init muen_input_init(void)
 	muen_input_res.start = irq_number;
 	muen_input_res.end   = irq_number;
 
+	channel_size = region->data.mem.size;
 	muen_input->channel = (struct muchannel *)
 		memremap(region->data.mem.address,
 			 region->data.mem.size,
@@ -278,7 +280,9 @@ static int __init muen_input_init(void)
 	}
 
 	/* Initialize reader and discard all previous data */
-	muen_channel_init_reader(&muen_input->reader, MUEN_PROTO_INPUT);
+	muen_channel_init_reader(&muen_input->reader, MUEN_PROTO_INPUT,
+				 sizeof(struct muen_input_event),
+				 channel_size);
 	muen_channel_read(muen_input->channel, &muen_input->reader, &ev);
 	muen_channel_drain(muen_input->channel, &muen_input->reader);
 
