@@ -414,10 +414,10 @@ SYM_FUNC_START(__cpu_setup)
 	mov	x1, #3 << 20
 	msr	cpacr_el1, x1			// Enable FP/ASIMD
 	mov	x1, #1 << 12			// Reset mdscr_el1 and disable
-	msr	mdscr_el1, x1			// access to the DCC from EL0
+	// msr	mdscr_el1, x1			// access to the DCC from EL0
 	isb					// Unmask debug exceptions now,
 	enable_dbg				// since this is per-cpu
-	reset_pmuserenr_el0 x1			// Disable PMU access from EL0
+	// reset_pmuserenr_el0 x1			// Disable PMU access from EL0
 	reset_amuserenr_el0 x1			// Disable AMU access from EL0
 
 	/*
